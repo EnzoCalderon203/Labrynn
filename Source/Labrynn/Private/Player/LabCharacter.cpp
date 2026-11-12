@@ -305,6 +305,12 @@ void ALabCharacter::TickStamina(float DeltaSeconds)
 	if (CMC && CMC->IsSprintingNow())
 	{
 		SpendStamina(S->SprintDrainPerSecond * DeltaSeconds);
+		// Correr hace ruido (pasos rápidos): lo puede oír el Minotauro.
+		if (Now >= NextSprintNoise)
+		{
+			NextSprintNoise = Now + 0.5f;
+			UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), 0.5f, this, 1400.f, FName("Sprint"));
+		}
 	}
 	if (IsCarryingRelic())
 	{
@@ -865,6 +871,16 @@ void ALabCharacter::ServerLanternToggle_Implementation()
 	{
 		L->ToggleByHolder(this);
 	}
+}
+
+ALabLantern* ALabCharacter::GetHeldLantern() const
+{
+	return HeldLantern.Get();
+}
+
+void ALabCharacter::SetHeldLantern(ALabLantern* Lantern)
+{
+	HeldLantern = Lantern;
 }
 
 bool ALabCharacter::HasLitLantern() const

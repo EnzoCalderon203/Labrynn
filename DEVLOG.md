@@ -305,6 +305,23 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   ambos (la V del cliente llega al servidor), y talkers 3D creados en servidor y cliente. ✅
 - ⚠️ **Sin verificar:** que el audio del micrófono se transmita y se escuche bien. Las pruebas automáticas no tienen micrófono.
   Lo tienen que probar Enzo y Luis hablando, idealmente por Steam (está en PENDIENTES).
+**18:19 · Punto 3: Minotauro ✅**
+- `ALabMinotaur` (ACharacter, maniquí ×1,35 con ojos rojos) + `ALabMinotaurController` con **AI Perception: Hearing** (6000 cm,
+  oye a todos). Aparece **al empezar la fase de escape**, en el callejón sin salida (sin foso) **más lejano** de los jugadores.
+- **Sin NavMesh:** BFS sobre la grilla del laberinto, con paredes y fosos bloqueados, hacia la celda del **último ruido fuerte** (≥ 0,25; memoria de 8 s;
+  prefiere el más fuerte y reciente). Si no oye nada, **deambula** a 300. Persiguiendo va a **600** (sprint 700, caminar 450). Al final de la
+  persecución va directo al jugador más cercano dentro de 4,5 m.
+- **Ruidos que oye:** voz (V), jadeo, **sprint** (nuevo: 0,5 cada 0,5 s, alcance 14 m) y **trampas al dispararse** (nuevo: 1,0, alcance 30 m).
+- **Golpe:** 50 de heridas + ragdoll (se caen la reliquia y el farol) y **queda aturdido 2,5 s** (ventana para escapar o rescatar).
+- **Telegrafía:** ojos rojos (más brillantes al perseguir), pasos y resoplidos 3D (sonidos para Luis: `FootstepSound`, `SnortSound`,
+  `RoarSound`), viñeta roja que late en el HUD (más rápido si persigue) y textos "Algo enorme respira cerca... silencio" / "¡TE OYÓ! ¡CORRÉ!".
+  Al abrirse la salida, el HUD avisa "Algo despertó en el laberinto... no hagan ruido".
+- **Prueba con input real:** el host toma la reliquia con **E** (empieza el escape) y mantiene **V** (habla).
+  - Spawn normal: a 38 m deambula siguiendo el BFS y **no** lo oye (la voz llega a 15 m). Correcto.
+  - Con `-LabMinotaurSpawnDist=1200` (solo para probar): `oyó 'Voz' (0.60)` → persigue a 600 por un camino de 32 celdas → `¡atrapó a C_0!` → `cayó`. ✅
+  - Con render: 0 crashes de GPU.
+- ⚠️ **Balance a mirar en el playtest:** quien carga la reliquia va a 248 cm/s, así que si el Minotauro lo oye, lo alcanza. Es la tensión buscada
+  (protegerlo, distraer al Minotauro o soltar la reliquia y correr), pero puede resultar demasiado. Todo se ajusta en el BP o el DA sin compilar.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Perception/AISense_Hearing.h"
 #include "Labrynn.h"
 
 ALabTrapBase::ALabTrapBase()
@@ -52,6 +53,8 @@ void ALabTrapBase::OnTriggerOverlap(UPrimitiveComponent*, AActor* Other, UPrimit
 	{
 		SetState(ELabTrapState::Firing);
 		ServerFire();
+		// Una trampa que se dispara es un ruido fuerte: atrae al Minotauro.
+		UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), 1.f, this, 3000.f, FName("Trampa"));
 		GetWorldTimerManager().SetTimer(StepTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
 			SetState(ELabTrapState::Cooldown);

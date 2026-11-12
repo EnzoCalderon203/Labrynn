@@ -54,9 +54,9 @@ public:
 
 	/** Farol que lleva en la mano (o null). Lo fija ALabLantern en todas las máquinas. */
 	UFUNCTION(BlueprintPure, Category = "Lab|Light")
-	class ALabLantern* GetHeldLantern() const { return HeldLantern.Get(); }
+	class ALabLantern* GetHeldLantern() const;
 
-	void SetHeldLantern(class ALabLantern* Lantern) { HeldLantern = Lantern; }
+	void SetHeldLantern(class ALabLantern* Lantern);
 
 	/** ¿Tiene un farol encendido en la mano? */
 	UFUNCTION(BlueprintPure, Category = "Lab|Light")
@@ -323,6 +323,7 @@ private:
 	float LastSpendTime = -100.f;
 	float ExhaustedUntil = 0.f;
 	float NextBreathNoise = 0.f;
+	float NextSprintNoise = 0.f;
 
 public:
 	/** Solo servidor. Corriente de aire: apaga el farol que lleva y no deja reencenderlo durante Seconds. */

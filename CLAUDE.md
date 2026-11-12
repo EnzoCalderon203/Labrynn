@@ -77,6 +77,10 @@ El sprint va en los saved moves (`ULabCharacterMovement`), nunca por RPC.
 **El piso del laberinto tiene que ser Static**: si es Movable, el cliente no puede resolver la base de movimiento (ALabMaze no se replica)
 e ignora las correcciones del servidor.
 
+## Minotauro (ALabMinotaur)
+Aparece en la fase de escape. Oye por AI Perception (Hearing) todo `UAISense_Hearing::ReportNoiseEvent` (tags: Voz, Jadeo, Sprint, Trampa).
+Se mueve con BFS sobre `FLabMazeLayout` (sin NavMesh). Toda acción nueva que deba "hacer ruido" tiene que llamar a `ReportNoiseEvent`.
+
 ## Pruebas (regla obligatoria)
 - Toda mecánica nueva se prueba **también por el camino del input real**: `Scripts/nettest.ps1 -Extra "-LabKeys=t:Tecla:D|U|P ..."`
   (inyecta en `UGameViewportClient::InputKey`). Los flags que activan cosas por código (`-LabAuto*`) sirven para preparar escenarios,

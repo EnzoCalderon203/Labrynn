@@ -70,6 +70,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Game", meta = (ClampMin = 1, ClampMax = 4))
 	int32 MaxPlayers = 4;
 
+	/** Minotauro (aparece en la fase de escape). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Minotaur")
+	TSubclassOf<class ALabMinotaur> MinotaurClass;
+
 	/** Farol (Blueprint hijo posible). En la mesa del hall hay max(1, jugadores - 1). */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
 	TSubclassOf<class ALabLantern> LanternClass;
@@ -82,6 +86,10 @@ private:
 	void SpawnTraps();
 	void SpawnPickups();
 	void EnsureLanterns();
+	void SpawnMinotaur();
+
+	UPROPERTY(Transient)
+	TObjectPtr<class ALabMinotaur> Minotaur;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<class ALabLantern>> Lanterns;

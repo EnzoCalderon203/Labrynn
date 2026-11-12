@@ -13,6 +13,7 @@
 #include "Traps/LabSpikeTrap.h"
 #include "Traps/LabPitTrap.h"
 #include "Traps/LabGasTrap.h"
+#include "Enemy/LabMinotaur.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "Maze/LabMaze.h"
@@ -398,6 +399,59 @@ void ALabGameMode::SpawnPickups()
 	UE_LOG(LogLabrynn, Log, TEXT("Frascos de aceite: %d, botiquines: %d"), N, MEnd - N);
 }
 
+void ALabGameMode::SpawnMinotaur()
+{
+	const ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	// En el callejón sin salida (sin foso) más lejos de todos los jugadores: aparece lejos, no encima de nadie.
+	FIntPoint Best(-1, -1);
+	float BestDist = -1.f;
+	float TestDist = 0.f; // pruebas: -LabMinotaurSpawnDist=N lo pone a ~N cm del jugador más cercano
+#if !UE_BUILD_SHIPPING
+	FParse::Value(FCommandLine::Get(), TEXT("LabMinotaurSpawnDist="), TestDist);
+#endif
+	float BestErr = TNumericLimits<float>::Max();
+	for (const FIntPoint& C : Maze->GetLayout().FindDeadEnds())
+	{
+		if (Maze->GetPitCells().Contains(C))
+		{
+			continue;
+		}
+		float MinD = TNumericLimits<float>::Max();
+		for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+		{
+			MinD = FMath::Min(MinD, FVector::Dist2D(It->GetActorLocation(), Maze->CellToWorld(C)));
+		}
+		if (TestDist > 0.f)
+		{
+			if (FMath::Abs(MinD - TestDist) < BestErr)
+			{
+				BestErr = FMath::Abs(MinD - TestDist);
+				BestDist = MinD;
+				Best = C;
+			}
+		}
+		else if (MinD > BestDist)
+		{
+			BestDist = MinD;
+			Best = C;
+		}
+	}
+	if (Best.X < 0)
+	{
+		return;
+	}
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	Minotaur = GetWorld()->SpawnActor<ALabMinotaur>(MinotaurClass ? *MinotaurClass : ALabMinotaur::StaticClass(),
+		FTransform(Maze->CellToWorld(Best) + FVector(0.f, 0.f, 140.f)), P);
+	UE_LOG(LogLabrynn, Log, TEXT("Minotauro spawneado en la celda %s (a %.0f cm del jugador más cercano)"), *Best.ToString(), BestDist);
+}
+
 void ALabGameMode::SpawnTraps()
 {
 	const ALabGameState* GS = GetGameState<ALabGameState>();
@@ -470,6 +524,12 @@ void ALabGameMode::CheckWinLose()
 	if (!GS || !Maze || GS->GetPhase() == ELabPhase::Won || GS->GetPhase() == ELabPhase::Lost)
 	{
 		return;
+	}
+
+	// Fase de escape: aparece el Minotauro (una vez).
+	if (GS->GetPhase() == ELabPhase::Escape && !Minotaur)
+	{
+		SpawnMinotaur();
 	}
 
 	// Derrota: no queda nadie en pie.

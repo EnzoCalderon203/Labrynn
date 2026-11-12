@@ -2,6 +2,7 @@
 
 #include "Player/LabCharacter.h"
 #include "Interact/LabLantern.h"
+#include "Enemy/LabMinotaur.h"
 #include "Core/LabGameState.h"
 #include "Interact/LabInteractable.h"
 #include "Engine/Canvas.h"
@@ -120,6 +121,30 @@ void ALabHUD::DrawHUD()
 		}
 	}
 
+	// Minotauro cerca: viñeta roja que late (más fuerte cuanto más cerca) + aviso.
+	for (TActorIterator<ALabMinotaur> It(GetWorld()); It; ++It)
+	{
+		const float D = FVector::Dist(It->GetActorLocation(), Ch->GetActorLocation());
+		if (D < 1800.f)
+		{
+			const float Near = 1.f - D / 1800.f;
+			const float Beat = 0.5f + 0.5f * FMath::Sin(GetWorld()->GetTimeSeconds() * (It->IsChasing() ? 9.f : 4.f));
+			const float A = Near * (0.25f + 0.35f * Beat);
+			const float Edge = 60.f + 120.f * Near;
+			DrawRect(FLinearColor(0.6f, 0.f, 0.f, A), 0.f, 0.f, Canvas->ClipX, Edge);
+			DrawRect(FLinearColor(0.6f, 0.f, 0.f, A), 0.f, Canvas->ClipY - Edge, Canvas->ClipX, Edge);
+			DrawRect(FLinearColor(0.6f, 0.f, 0.f, A), 0.f, 0.f, Edge, Canvas->ClipY);
+			DrawRect(FLinearColor(0.6f, 0.f, 0.f, A), Canvas->ClipX - Edge, 0.f, Edge, Canvas->ClipY);
+			if (D < 1100.f)
+			{
+				const FString W = It->IsChasing() ? TEXT("¡TE OYÓ! ¡CORRÉ!") : TEXT("Algo enorme respira cerca... silencio");
+				float WW, WH;
+				GetTextSize(W, WW, WH, Font, 1.4f);
+				DrawText(W, FLinearColor(1.f, 0.35f, 0.3f), (Canvas->ClipX - WW) * 0.5f, Canvas->ClipY * 0.36f, Font, 1.4f);
+			}
+		}
+	}
+
 	// Voz: indicador propio y sobre los compañeros que hablan (si están al alcance de la voz).
 	if (Ch->IsTalking())
 	{
@@ -176,6 +201,7 @@ void ALabHUD::DrawHUD()
 		{
 		case ELabPhase::Escape:
 			if (Since < 6.f) { Msg = TEXT("¡LA SALIDA SE ABRIÓ!  Llevá la reliquia a la luz roja"); Col = FLinearColor(1.f, 0.35f, 0.25f); }
+			else if (Since < 12.f) { Msg = TEXT("Algo despertó en el laberinto... no hagan ruido"); Col = FLinearColor(1.f, 0.2f, 0.15f); Scale = 1.7f; }
 			break;
 		case ELabPhase::Won:
 			Msg = TEXT("¡ESCAPARON CON LA RELIQUIA!"); Col = FLinearColor(0.5f, 1.f, 0.6f); Scale = 3.f;

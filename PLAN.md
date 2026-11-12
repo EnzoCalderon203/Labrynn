@@ -66,6 +66,6 @@ Orden de trabajo, con commit y prueba en LAN (con input real) después de cada p
 | 0 | Bug: Shift no corría en PIE + migración a Enhanced Input | ✅ |
 | 1 | Farol medieval, mesa con jugadores-1, aceite, corriente de aire, reencendido de 3 s | ✅ |
 | 2 | Chat de voz por proximidad (V, atenuación 3D, oclusión; la voz hace ruido) | ✅ lógica (falta probar el audio con 2 personas) |
-| 3 | Minotauro (fase de escape, BFS por la grilla hacia el ruido, golpe = heridas grandes + ragdoll) | ⏳ |
+| 3 | Minotauro (fase de escape, BFS por la grilla hacia el ruido, golpe = heridas grandes + ragdoll) | ✅ |
 | 4 | Si sobra tiempo: premios graciosos al final + ping con la rueda del mouse | ⏳ |
 Regla de recorte si se atrasa: 4 → antorchas → oclusión de voz → resoplidos 3D del Minotauro.

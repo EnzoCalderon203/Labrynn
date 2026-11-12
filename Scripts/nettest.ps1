@@ -9,7 +9,8 @@ param(
     [int]$ShotServer = 60,
     [int]$ShotClient = 25,
     [int]$ClientDelay = 15,
-    [string]$Extra = ''   # parámetros extra para ambos, ej. "-LabExposure=6 -LabFlashlight=8000"
+    [string]$Extra = '',  # parámetros extra para ambos, ej. "-LabExposure=6 -LabFlashlight=8000"
+    [switch]$Menu         # flujo real: menú → Crear partida / Buscar y unirse (LAN con -nosteam)
 )
 $ErrorActionPreference = 'Stop'
 $ue   = 'C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe'
@@ -25,9 +26,16 @@ $render = if ($NoRender) { '-nullrhi' } else { '-windowed -ResX=1280 -ResY=720' 
 $common = "-game $render -nosound -unattended -nosplash -log $Extra"
 
 # Solo el host se cierra solo (-LabAutoQuit); al cliente lo cierra el script cuando termina el host.
-$srv = Start-Process $ue -PassThru -ArgumentList "`"$proj`" /Game/Labrynn/Maps/L_Labrynn?listen?Seed=$Seed $common -LabAutoQuit -WinX=0 -WinY=0 -abslog=`"$logs\server.log`" -LabAutoShot=$ShotServer"
+if ($Menu) {
+    $srvTarget = '-nosteam -LabMenuHost'   # sin mapa: arranca en L_Menu (GameDefaultMap)
+    $cliTarget = '-nosteam -LabMenuJoin'
+} else {
+    $srvTarget = "/Game/Labrynn/Maps/L_Labrynn?listen?Seed=$Seed"
+    $cliTarget = '127.0.0.1'
+}
+$srv = Start-Process $ue -PassThru -ArgumentList "`"$proj`" $srvTarget $common -LabAutoQuit -WinX=0 -WinY=0 -abslog=`"$logs\server.log`" -LabAutoShot=$ShotServer"
 Start-Sleep -Seconds $ClientDelay
-$cli = Start-Process $ue -PassThru -ArgumentList "`"$proj`" 127.0.0.1 $common -WinX=640 -WinY=360 -abslog=`"$logs\client.log`" -LabAutoShot=$ShotClient"
+$cli = Start-Process $ue -PassThru -ArgumentList "`"$proj`" $cliTarget $common -WinX=640 -WinY=360 -abslog=`"$logs\client.log`" -LabAutoShot=$ShotClient"
 
 $srv.WaitForExit(($ShotServer + 120) * 1000) | Out-Null
 Stop-Process -Id $cli.Id, $srv.Id -Force -ErrorAction SilentlyContinue

@@ -14,7 +14,12 @@ public class Labrynn : ModuleRules
 			"EnhancedInput",
 			"UMG",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"OnlineSubsystem",
+			"OnlineSubsystemUtils"
 		});
+
+		// Steam se carga como plugin en runtime (no hace falta linkearlo).
+		DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 	}
 }

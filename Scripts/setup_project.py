@@ -21,17 +21,27 @@ def log(msg):
     unreal.log(f"[LabSetup] {msg}")
 
 
-def ensure_map():
-    if unreal.EditorAssetLibrary.does_asset_exist(MAP_PATH):
-        log(f"El mapa ya existe: {MAP_PATH}")
-        return
-    tools = unreal.AssetToolsHelpers.get_asset_tools()
-    world = tools.create_asset(MAP_NAME, MAP_DIR, unreal.World, unreal.WorldFactory())
-    if world is None:
-        unreal.log_error(f"[LabSetup] No se pudo crear {MAP_PATH}")
-        return
+def ensure_map(name=MAP_NAME, game_mode_class=None):
+    """Crea el mapa vacío si no existe y le asigna el GameMode en World Settings."""
+    path = f"{MAP_DIR}/{name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        world = unreal.load_asset(path)
+        log(f"El mapa ya existe: {path}")
+    else:
+        tools = unreal.AssetToolsHelpers.get_asset_tools()
+        world = tools.create_asset(name, MAP_DIR, unreal.World, unreal.WorldFactory())
+        if world is None:
+            unreal.log_error(f"[LabSetup] No se pudo crear {path}")
+            return
+        log(f"Mapa creado: {path}")
+
+    if game_mode_class is not None:
+        ws = world.get_world_settings()
+        current = ws.get_editor_property("default_game_mode")
+        if current != game_mode_class:
+            ws.set_editor_property("default_game_mode", game_mode_class)
+            log(f"   GameMode de {name} = {game_mode_class.get_name()}")
     unreal.EditorAssetLibrary.save_loaded_asset(world, only_if_is_dirty=False)
-    log(f"Mapa creado: {MAP_PATH}")
 
 
 def describe_bp(path):
@@ -58,7 +68,8 @@ def describe_bp(path):
 
 
 def main():
-    ensure_map()
+    ensure_map("L_Labrynn", unreal.LabGameMode.static_class())
+    ensure_map("L_Menu", unreal.LabMenuGameMode.static_class())
 
     ch = describe_bp("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter")
     if ch is not None:

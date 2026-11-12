@@ -1,4 +1,4 @@
-#include "Enemy/LabMinotaur.h"
+﻿#include "Enemy/LabMinotaur.h"
 
 #include "Enemy/LabMinotaurController.h"
 #include "Enemy/LabMinotaurSettings.h"
@@ -242,7 +242,7 @@ void ALabMinotaur::TryAttack()
 	for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
 	{
 		ALabCharacter* Ch = *It;
-		if (!Ch->IsAliveAndFree())
+		if (!Ch->IsDetectableByMinotaur()) // escondido sin farol: no lo ve
 		{
 			continue;
 		}
@@ -298,7 +298,7 @@ void ALabMinotaur::Tick(float DeltaSeconds)
 			for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
 			{
 				const float D = FVector::Dist2D(It->GetActorLocation(), GetActorLocation());
-				if (It->IsAliveAndFree() && D < Best)
+				if (It->IsDetectableByMinotaur() && D < Best)
 				{
 					Best = D;
 					Goal = It->GetActorLocation();

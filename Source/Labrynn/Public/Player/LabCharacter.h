@@ -65,6 +65,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|Voice")
 	bool IsTalking() const { return bTalking; }
 
+	// --- Escondites ---
+	/** Solo servidor (lo llama ALabHidingSpot). */
+	void EnterHiding(class ALabHidingSpot* Spot);
+	/** Solo servidor. */
+	void ExitHiding();
+
+	UFUNCTION(BlueprintPure, Category = "Lab|Hide")
+	bool IsHiding() const { return bHiding; }
+
+	/** ¿El Minotauro puede detectarlo/atacarlo? (escondido sin farol encendido = no) */
+	bool IsDetectableByMinotaur() const;
+
+	const class ULabGameplaySettings* GetGameplaySettings() const;
+
 	/** Último volumen de ruido de voz emitido (servidor; para pruebas/depuración). */
 	float LastVoiceNoiseLevel = 0.f;
 
@@ -124,6 +138,18 @@ protected:
 	/** Hasta qué hora del servidor está en una corriente de aire (no se puede encender). */
 	UPROPERTY(Replicated)
 	float GasUntilServerTime = 0.f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Hiding)
+	bool bHiding = false;
+
+	UFUNCTION()
+	void OnRep_Hiding();
+	void ApplyHiding();
+
+	TWeakObjectPtr<class ALabHidingSpot> HidingSpot;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Gameplay")
+	TObjectPtr<class ULabGameplaySettings> GameplaySettings;
 
 	// --- Voz por proximidad (V = push-to-talk) ---
 	void TalkPressed();

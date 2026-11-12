@@ -70,6 +70,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Game", meta = (ClampMin = 1, ClampMax = 4))
 	int32 MaxPlayers = 4;
 
+	/** Cantidades del mundo (escondites, lanzables, obstáculos). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Gameplay")
+	TObjectPtr<class ULabGameplaySettings> GameplaySettings;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Gameplay")
+	TSubclassOf<class ALabHidingSpot> HidingSpotClass;
+
 	/** Minotauro (aparece en la fase de escape). */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Minotaur")
 	TSubclassOf<class ALabMinotaur> MinotaurClass;
@@ -87,6 +94,10 @@ private:
 	void SpawnPickups();
 	void EnsureLanterns();
 	void SpawnMinotaur();
+	void SpawnHidingSpots();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class ALabHidingSpot>> HidingSpots;
 
 	UPROPERTY(Transient)
 	TObjectPtr<class ALabMinotaur> Minotaur;

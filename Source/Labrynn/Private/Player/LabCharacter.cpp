@@ -27,6 +27,8 @@
 #include "InputAction.h"
 #include "Net/VoiceConfig.h"
 #include "Maze/LabVisualSettings.h"
+#include "Core/LabGameplaySettings.h"
+#include "Interact/LabHidingSpot.h"
 #include "Sound/SoundAttenuation.h"
 #include "Labrynn.h"
 
@@ -43,6 +45,9 @@ ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	InteractAction = IAInteract.Object;
 	LanternAction = IALantern.Object;
 	TalkAction = IATalk.Object;
+
+	static ConstructorHelpers::FObjectFinder<ULabGameplaySettings> GameplayDA(TEXT("/Game/Labrynn/Core/DA_Gameplay.DA_Gameplay"));
+	GameplaySettings = GameplayDA.Object;
 
 	static ConstructorHelpers::FObjectFinder<ULabStaminaSettings> StaminaDA(TEXT("/Game/Labrynn/Core/DA_Stamina.DA_Stamina"));
 	if (StaminaDA.Succeeded())
@@ -120,6 +125,72 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, DownImpulse);
 	DOREPLIFETIME(ALabCharacter, GasUntilServerTime);
 	DOREPLIFETIME(ALabCharacter, bTalking);
+	DOREPLIFETIME(ALabCharacter, bHiding);
+}
+
+// ---------------------------------------------------------------- Escondites
+
+const ULabGameplaySettings* ALabCharacter::GetGameplaySettings() const
+{
+	return GameplaySettings ? GameplaySettings.Get() : GetDefault<ULabGameplaySettings>();
+}
+
+bool ALabCharacter::IsDetectableByMinotaur() const
+{
+	return IsAliveAndFree() && (!bHiding || HasLitLantern()); // un farol encendido delata aunque estés escondido
+}
+
+void ALabCharacter::EnterHiding(ALabHidingSpot* Spot)
+{
+	if (!HasAuthority() || !Spot || bHiding)
+	{
+		return;
+	}
+	HidingSpot = Spot;
+	bHiding = true;
+	SetActorLocation(Spot->GetActorLocation() + FVector(0.f, 0.f, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+	ApplyHiding();
+	UE_LOG(LogLabrynn, Log, TEXT("%s se escondió en %s%s"), *GetName(), *Spot->GetName(), HasLitLantern() ? TEXT(" (¡con el farol encendido: se lo ve!)") : TEXT(""));
+}
+
+void ALabCharacter::ExitHiding()
+{
+	if (!HasAuthority() || !bHiding)
+	{
+		return;
+	}
+	ALabHidingSpot* Spot = HidingSpot.Get();
+	bHiding = false;
+	HidingSpot.Reset();
+	if (Spot)
+	{
+		Spot->ClearOccupant(this);
+		SetActorLocation(Spot->GetExitLocation(), false, nullptr, ETeleportType::TeleportPhysics);
+	}
+	ApplyHiding();
+	UE_LOG(LogLabrynn, Log, TEXT("%s salió del escondite"), *GetName());
+}
+
+void ALabCharacter::OnRep_Hiding()
+{
+	ApplyHiding();
+}
+
+void ALabCharacter::ApplyHiding()
+{
+	// Escondido: sin colisión ni movimiento, cuerpo invisible para todos (vos seguís viendo).
+	SetActorEnableCollision(!bHiding);
+	GetMesh()->SetHiddenInGame(bHiding);
+	FirstPersonMesh->SetHiddenInGame(bHiding);
+	if (bHiding)
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
+	}
+	else if (IsAliveAndFree())
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
 }
 
 // ---------------------------------------------------------------- Ojos
@@ -263,6 +334,10 @@ void ALabCharacter::TickVoice(float DeltaSeconds)
 		if (VoiceTalker)
 		{
 			Level = FMath::Max(0.3f, FMath::Clamp(VoiceTalker->GetVoiceLevel() * 4.f, 0.f, 1.f));
+		}
+		if (bHiding)
+		{
+			Level *= GetGameplaySettings()->HiddenVoiceNoiseMultiplier; // escondido: la voz hace menos ruido
 		}
 		UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), Level, this, VoiceNoiseRange * Level, FName("Voz"));
 		UE_LOG(LogLabrynn, Log, TEXT("Voz: ruido %.2f de %s (alcance %.0f)"), Level, *GetName(), VoiceNoiseRange * Level);
@@ -521,6 +596,7 @@ void ALabCharacter::KnockDown(const FVector& Impulse)
 	{
 		L->SetHolder(nullptr); // y el farol (queda encendido en el piso, al lado del cuerpo)
 	}
+	ExitHiding(); // si estaba escondido, sale
 
 	const ELabLifeState Old = LifeState;
 	LifeState = ELabLifeState::Downed;
@@ -862,6 +938,11 @@ void ALabCharacter::ServerInteract_Implementation()
 	{
 		return;
 	}
+	if (bHiding)
+	{
+		ExitHiding(); // escondido, E solo sirve para salir
+		return;
+	}
 	if (AActor* Target = FindBestInteractable())
 	{
 		Cast<ILabInteractable>(Target)->Interact(this);
@@ -915,7 +996,7 @@ void ALabCharacter::DoMove(float Right, float Forward)
 
 bool ALabCharacter::CanJumpInternal_Implementation() const
 {
-	return Super::CanJumpInternal_Implementation() && !bExhausted && IsAliveAndFree();
+	return Super::CanJumpInternal_Implementation() && !bExhausted && IsAliveAndFree() && !bHiding;
 }
 
 void ALabCharacter::OnJumped_Implementation()

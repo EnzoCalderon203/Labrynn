@@ -346,6 +346,18 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - **Prueba con input real:** el host toma el farol con **E**, el cliente toma la reliquia con **E** (empieza el escape) y el host habla con **V**.
   Resultado en ~70 s: `oyó 'Voz'` → `¡el fuego de C_0 lo frena! retrocede 3 s` → `busca otro camino` → … **6 frenadas y 0 atrapados**.
   Aceite del farol al **59 %** (sin el ×4 habría quedado en ~77 %). ✅
+**18:58 · Diseño v2, punto 3: Escondites ✅**
+- `ALabHidingSpot` replicado: **barril, paja o nicho** (formas provisorias; un BP hijo puede poner las del kit medieval). Se colocan en
+  **callejones sin salida**, contra la pared del fondo y mirando a la abertura (`DA_Gameplay.HidingSpotCount = 8`).
+- **E** para entrar o salir; una persona por escondite y no se puede entrar con la reliquia. Escondido no te movés, tu cuerpo no se ve y no tenés colisión.
+  Al caer en ragdoll, salís.
+- **El Minotauro no detecta ni ataca** a quien está escondido, **salvo que tenga un farol encendido** (`IsDetectableByMinotaur`).
+- **La voz escondida hace menos ruido** (×0,35).
+- Nuevo **`DA_Gameplay`** (`ULabGameplaySettings`): escondites, lanzables, obstáculos y bordes.
+- **Prueba con input real:** el cliente se esconde con **E** y habla con **V** → ruido de voz de **0,11 (2,6 m)**, por debajo del umbral del Minotauro.
+  El host toma y suelta la reliquia con **E**, se para al lado del escondite y habla con **V**. El Minotauro llega y `¡atrapó a C_0!` (el host);
+  **al cliente escondido nunca lo atacó**. ✅
+- Nota de diseño: un jugador caído que sigue apretando V sigue haciendo ruido. Queda así a propósito (pedir ayuda tiene riesgo).
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

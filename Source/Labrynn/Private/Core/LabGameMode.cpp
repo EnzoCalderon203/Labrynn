@@ -14,6 +14,8 @@
 #include "Traps/LabPitTrap.h"
 #include "Traps/LabGasTrap.h"
 #include "Enemy/LabMinotaur.h"
+#include "Interact/LabHidingSpot.h"
+#include "Core/LabGameplaySettings.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "Maze/LabMaze.h"
@@ -29,6 +31,8 @@ ALabGameMode::ALabGameMode()
 	DefaultPawnClass = ALabCharacter::StaticClass();
 	HUDClass = ALabHUD::StaticClass();
 	RelicClass = ALabRelic::StaticClass();
+	static ConstructorHelpers::FObjectFinder<ULabGameplaySettings> GameplayDA(TEXT("/Game/Labrynn/Core/DA_Gameplay.DA_Gameplay"));
+	GameplaySettings = GameplayDA.Object;
 	bUseSeamlessTravel = false;
 
 	// Blueprints hijos con meshes/animaciones/input asignados (contenido de la plantilla First Person).
@@ -74,6 +78,7 @@ void ALabGameMode::StartPlay()
 	SpawnRelic();
 	SpawnTraps();
 	SpawnPickups();
+	SpawnHidingSpots();
 	GetWorldTimerManager().SetTimer(CheckTimer, this, &ALabGameMode::CheckWinLose, 0.25f, true);
 
 #if !UE_BUILD_SHIPPING
@@ -214,6 +219,35 @@ void ALabGameMode::StartPlay()
 				const FVector Slot = Maze->GetLanternTableSlot(0).GetLocation();
 				PC->GetPawn()->SetActorLocation(Slot + FVector(0.f, 130.f, 15.f), false, nullptr, ETeleportType::TeleportPhysics);
 				PC->ClientSetRotation(FRotator(-35.f, -90.f, 0.f)); // mirando la mesa (-Y)
+				break;
+			}
+		}), At, false);
+	}
+
+	// -LabTeleportToHide=N / -LabTeleportClientToHide=N: acomoda al host / cliente frente al primer escondite.
+	for (const bool bClient : { false, true })
+	{
+		float At = 0.f;
+		if (!FParse::Value(FCommandLine::Get(), bClient ? TEXT("LabTeleportClientToHide=") : TEXT("LabTeleportToHide="), At))
+		{
+			continue;
+		}
+		FTimerHandle TT;
+		GetWorldTimerManager().SetTimer(TT, FTimerDelegate::CreateWeakLambda(this, [this, bClient]()
+		{
+			if (HidingSpots.Num() == 0) { return; }
+			const ALabHidingSpot* Spot = HidingSpots[0];
+			for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+			{
+				APlayerController* PC = It->Get();
+				if (!PC || !PC->GetPawn() || PC->IsLocalController() == bClient)
+				{
+					continue;
+				}
+				// El host queda un poco más atrás que el cliente (para no tapar el escondite).
+				const FVector Pos = Spot->GetExitLocation() + Spot->GetActorForwardVector() * (bClient ? 0.f : 120.f);
+				PC->GetPawn()->SetActorLocation(Pos, false, nullptr, ETeleportType::TeleportPhysics);
+				PC->ClientSetRotation(FRotator(-25.f, (-Spot->GetActorForwardVector()).Rotation().Yaw, 0.f));
 				break;
 			}
 		}), At, false);
@@ -397,6 +431,51 @@ void ALabGameMode::SpawnPickups()
 			FTransform(Maze->CellToWorld(Cells[i]) + FVector(0.f, 0.f, 10.f)), P);
 	}
 	UE_LOG(LogLabrynn, Log, TEXT("Frascos de aceite: %d, botiquines: %d"), N, MEnd - N);
+}
+
+void ALabGameMode::SpawnHidingSpots()
+{
+	const ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	const FLabMazeLayout& L = Maze->GetLayout();
+	const ULabGameplaySettings* S = GameplaySettings ? GameplaySettings.Get() : GetDefault<ULabGameplaySettings>();
+	FRandomStream Rng(GS->GetMazeSeed() * 53 + 11);
+
+	// Sobre todo en callejones sin salida (contra la pared del fondo, mirando a la abertura).
+	TArray<FIntPoint> Cells = L.FindDeadEnds();
+	Cells.RemoveAll([Maze](const FIntPoint& C) { return Maze->GetPitCells().Contains(C); });
+	for (int32 i = Cells.Num() - 1; i > 0; --i)
+	{
+		Cells.Swap(i, Rng.RandRange(0, i));
+	}
+	static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+	int32 Spawned = 0;
+	for (int32 i = 0; i < Cells.Num() && Spawned < S->HidingSpotCount; ++i)
+	{
+		const FIntPoint C = Cells[i];
+		FIntPoint Open(0, 0);
+		for (const FIntPoint& D : Dirs)
+		{
+			if (!L.HasWallBetween(C, D)) { Open = D; break; }
+		}
+		const FVector OpenDir(Open.X, Open.Y, 0.f);
+		const FVector Loc = Maze->CellToWorld(C) - OpenDir * (Maze->CellSize * 0.5f - 75.f);
+		const FTransform T(OpenDir.Rotation(), Loc);
+		ALabHidingSpot* Spot = GetWorld()->SpawnActorDeferred<ALabHidingSpot>(HidingSpotClass ? *HidingSpotClass : ALabHidingSpot::StaticClass(),
+			T, this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (Spot)
+		{
+			Spot->Kind = static_cast<ELabHidingKind>(Rng.RandRange(0, 2));
+			Spot->FinishSpawning(T);
+			HidingSpots.Add(Spot);
+			++Spawned;
+		}
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Escondites: %d"), Spawned);
 }
 
 void ALabGameMode::SpawnMinotaur()

@@ -68,8 +68,21 @@ música adaptativa y arte custom elaborado.
 - **Conexión online:** Online Subsystem Steam con AppID 480 (ver DEVLOG). Fallback: IP directa.
 
 ## Controles (Enhanced Input: IMC_Default de la plantilla + IMC_Labrynn propio)
-WASD moverse · mouse mirar · Espacio saltar (gasta stamina) · **Shift correr** · F apagar/reencender el farol · E interactuar (tomar/pasar/soltar) · V hablar (próximamente) · Esc menú.
-Agacharse: no existe.
+WASD moverse · mouse mirar · Espacio saltar (gasta stamina) · **Shift correr** · **C agacharse** (túneles bajos; agachado frente a un borde = pie de banco)
+· F apagar/reencender el farol · **E interactuar** (tomar/pasar/soltar, levantar a un caído; **mantener E sobre un caído = cargarlo al hombro**, E otra vez lo suelta;
+agarrar la mano de quien la extiende) · **click izq. mantenido = apuntar** piedra/botella (arco), soltar = lanzar · **V hablar** (push-to-talk, proximidad) · Esc menú.
+Assets de input: `Scripts/create_input_assets.py` (IA_Sprint, IA_Interact, IA_Lantern, IA_Talk, IA_Crouch, IA_Throw en IMC_Labrynn).
+
+## Mecánicas del diseño v2 (todas en C++, valores en `DA_Gameplay` / `DA_Visuals` / `DA_Minotaur`)
+- **Visibilidad mínima sin farol:** adaptación a la oscuridad (la exposición sube en 10 s), musgo y grietas emisivas, haces de luna y un brillo personal tenue.
+- **El Minotauro le teme al fuego:** un farol encendido cerca lo hace retroceder 3 s y gasta aceite ×4 mientras lo contiene.
+- **Escondites** (`ALabHidingSpot`: barril, heno, nicho): no te detecta y la voz hace menos ruido.
+- **Obstáculos:** escombros/vigas (saltar), túneles bajos (agacharse) y bordes altos en el camino principal (solo con ayuda → requiere ≥ 2 jugadores).
+  Se validan al generar (alturas contra salto y cápsula).
+- **Pie de banco / dar la mano:** agachado frente a un borde, la E del compañero lo impulsa. Desde arriba se extiende la mano (E mantenida) y el de abajo salta + E.
+- **Cargar a un caído:** lento (×0,5), gasta stamina, sin farol; si el que carga cae, caen los dos.
+- **Lanzables** (`ALabThrowable`): máx. 3; la botella hace ruido fuerte y se rompe, la piedra rebota. El Minotauro va al ruido y los objetos activan trampas a distancia.
+- **Voz procesada por estado** (`ULabVoipTalker` + `TickVoice`): herido entrecortada, corriendo agitada, caído ahogada, escondido baja, cargado rebota.
 
 ## Stamina / heridas (estilo Peak)
 Una sola barra; las heridas bloquean la parte de arriba; si la llenan → caído. Valores en `/Game/Labrynn/Core/DA_Stamina`.
@@ -78,7 +91,8 @@ El sprint va en los saved moves (`ULabCharacterMovement`), nunca por RPC.
 e ignora las correcciones del servidor.
 
 ## Minotauro (ALabMinotaur)
-Aparece en la fase de escape. Oye por AI Perception (Hearing) todo `UAISense_Hearing::ReportNoiseEvent` (tags: Voz, Jadeo, Sprint, Trampa).
+Aparece en la fase de escape. Oye por AI Perception (Hearing) todo `UAISense_Hearing::ReportNoiseEvent` (tags: Voz, Jadeo, Sprint, Trampa, Piedra, Botella).
+Evita fosos, túneles, bordes y celdas con farol encendido. No ataca a jugadores escondidos.
 Se mueve con BFS sobre `FLabMazeLayout` (sin NavMesh). Toda acción nueva que deba "hacer ruido" tiene que llamar a `ReportNoiseEvent`.
 
 ## Pruebas (regla obligatoria)
@@ -86,6 +100,10 @@ Se mueve con BFS sobre `FLabMazeLayout` (sin NavMesh). Toda acción nueva que de
   (inyecta en `UGameViewportClient::InputKey`). Los flags que activan cosas por código (`-LabAuto*`) sirven para preparar escenarios,
   **nunca** para dar por probado un control. El código de prueba no puede tocar estado de juego fuera de su ventana activa.
 - Se prueba siempre en LAN con host + cliente; el cliente es el caso importante (RPC + predicción).
+  Guiones por rol: `-LabKeysHost=...` / `-LabKeysClient=...`. Preparadores de escenario (solo dev): `-LabTeleportTo{Relic,Table,Hide,Client,Throwable,Spike}=T`,
+  `-LabTeleportToObstacle=N -LabObstacleType=rubble|tunnel`, `-LabLedgeSetup`, `-LabDownClient=T`, `-LabWoundHost=T`, `-LabThrowClient`, `-LabThrowKind=bottle`,
+  `-LabMinotaurSpawnDist=N`. Se verifica primero por logs (`LogLabrynn`); capturas solo si es imprescindible.
+- Si vuelven los crash de GPU: probar `r.Shadow.Virtual.Enable=0` y anotarlo en el DEVLOG.
 
 ## Convenciones de código
 

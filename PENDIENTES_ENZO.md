@@ -59,6 +59,35 @@ En la prueba por Steam (2b): mantener **V** y hablar. Verificar que (1) se escuc
 (3) suena apagado detrás de una pared. Si no se escucha nada, pasarle a Claude `Saved\Logs\Labrynn.log` de las dos PCs.
 Windows tiene que tener el micrófono permitido para apps de escritorio.
 
+## 2f. 🟠 Luis: pruebas con micrófono (diseño v2, punto 8)
+La voz se procesa según el estado de **quien habla**, y eso lo escucha **el otro**. Las pruebas automáticas no tienen micrófono:
+solo verifican por logs (`Voz[...]: ahogada (caído)`, etc.). Hay que escucharlo de verdad.
+En LAN o Steam, Luis mantiene **V** y habla mientras:
+1. **Normal**, parado: referencia.
+2. **Corriendo** (Shift) o sin stamina → tiene que sonar "agitada" (oscila un poco).
+3. **Herido** (≥ 50 % de la barra bloqueada; pisar pinchos dos veces) → entrecortada, con cortes breves.
+4. **Caído** (foso) → ahogada, como con la boca tapada.
+5. **Escondido** (E en barril o heno) → más baja y apagada.
+6. **Cargado** (Enzo mantiene E sobre su cuerpo y camina) → el volumen "rebota".
+7. Detrás de una pared → apagada (oclusión), y baja con la distancia.
+
+Si algún efecto es demasiado fuerte o flojo, ajustar la categoría **Voz** de `DA_Gameplay`
+(`VoiceDownedLowPass`, `VoiceHiddenVolume`…) o avisarle a Claude.
+
+## 2g. 🟠 Luis: sonidos a asignar (todos son `UPROPERTY` vacíos; el juego funciona sin ellos)
+| Dónde | Propiedad | Qué sonido |
+|---|---|---|
+| Trampas (BP hijos de `LabSpikeTrap` / `LabPitTrap` / `LabGasTrap`) | `WarnSound`, `FireSound`, `ResetSound` | clic de aviso, golpe/disparo, rearme |
+| `LabLantern` | `LightSound`, `ExtinguishSound` | encender y apagar fuego |
+| `LabOilFlask` / `LabMedkitPickup` | `PickupSound` | juntar |
+| `LabHeart` | `UseSound` | latido o pulso mágico |
+| `DA_Stamina` | `BreathSound` | respiración agitada (loop) |
+| `LabMinotaur` | `FootstepSound`, `SnortSound`, `RoarSound`, `FireFearSound` | pasos pesados, resoplido, rugido, quejido ante el fuego |
+| `LabCharacter` | `EffortSound` | esfuerzo al tirar o impulsar |
+| `LabThrowable` | `ImpactSound`, `ShatterSound` | golpe de piedra, botella rota |
+
+Los nombres exactos se ven en el panel Details del Blueprint hijo (categoría `Lab|...|Audio`). Si alguno no aparece, avisar.
+
 ## 3. 🟡 Joystick con drift
 Hay un **"Wireless Controller" Bluetooth** (joystick de PlayStation) conectado. En una prueba, el personaje del host
 caminó solo por el laberinto, y lo más probable es que haya sido drift del stick (el juego lee el joystick aunque la ventana

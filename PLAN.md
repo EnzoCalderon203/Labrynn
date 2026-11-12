@@ -69,3 +69,17 @@ Orden de trabajo, con commit y prueba en LAN (con input real) después de cada p
 | 3 | Minotauro (fase de escape, BFS por la grilla hacia el ruido, golpe = heridas grandes + ragdoll) | ✅ |
 | 4 | Si sobra tiempo: premios graciosos al final + ping con la rueda del mouse | ⏳ |
 Regla de recorte si se atrasa: 4 → antorchas → oclusión de voz → resoplidos 3D del Minotauro.
+
+## Diseño v2 (pedido de Enzo, jueves 12/11 a la noche)
+Mismo procedimiento: compilar, probar en LAN con input real (host + cliente), commit y DEVLOG.
+| # | Qué | Estado |
+|---|---|---|
+| 1 | Visibilidad mínima sin farol (adaptación, musgo, luna, brillo personal) | ✅ |
+| 2 | El Minotauro le teme al fuego | ✅ |
+| 3 | Escondites (barril, heno, nicho) | ✅ |
+| 4 | Obstáculos + agacharse (C), con validación de camino | ✅ |
+| 5 | Pie de banco + dar la mano (bordes en el camino principal) | ✅ |
+| 6 | Cargar a un caído al hombro | ✅ (pose sin verificar con captura) |
+| 7 | Piedras y botellas (arco, ruido, activan trampas) | ✅ |
+| 8 | Voz procesada por estado | ✅ lógica · falta escucharlo con micrófono (Luis, PENDIENTES 2f) |
+| 9 | Si sobra tiempo: premios graciosos + ping con la rueda | ⏳ |

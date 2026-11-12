@@ -229,6 +229,37 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 
 ---
 
+**16:41 · Stamina estilo Peak ✅ (pedido de Enzo)**
+- **Una sola barra**, sin barra de vida aparte (`Health` se eliminó). Las **heridas bloquean la parte de arriba** de la barra: la
+  stamina usable nunca supera Máx − heridas. Si las heridas llenan la barra, el personaje cae en ragdoll (el rescate sigue igual).
+- **Shift = correr** (700 cm/s, gasta 9/s). Al llegar a 0 → **jadeo** 4 s: va a 230 cm/s, no puede saltar ni correr, suena la
+  respiración (`BreathSound`, para Luis) y cada 0,8 s emite un **evento de ruido de AI Perception** (`UAISense_Hearing`, tag
+  `Jadeo`). El **Minotauro no existe** (los enemigos quedaron fuera del alcance); el ruido queda listo por si se agrega.
+- Cargar la reliquia gasta 2,5/s, y saltar gasta 8.
+- Heridas: pinchos 35 (más el lanzamiento, sin caer si no llena la barra) y foso 25 (más atrapado).
+  **Botiquín** (nuevo, 3 por laberinto) cura 50. **Corazón**: todos sin heridas y con la stamina llena.
+  Al ser levantado por un compañero queda con 60 de heridas.
+- **Sprint predicho**: `ULabCharacterMovement` + `FLabSavedMove` con `FLAG_Custom_0`. El pedido de sprint viaja en los saved moves,
+  así que cliente y servidor calculan la misma velocidad y no hay rubber-banding.
+- **Valores en Data Asset** `/Game/Labrynn/Core/DA_Stamina` (`ULabStaminaSettings`), creado por `Scripts/setup_project.py`.
+  Se ajustan en el editor sin compilar.
+- HUD provisional: barra de stamina (blanca = disponible, gris = recuperable, **roja con rayas = heridas**), batería e ícono
+  de reliquia (rombo celeste).
+- **Bugs encontrados en la prueba y corregidos:**
+  1. 🔴 **El cliente ignoraba TODAS las correcciones de posición del servidor** (`could not resolve the new relative movement base`).
+     El piso era Movable y Unreal lo trataba como base dinámica, pero `ALabMaze` no se replica (cada máquina tiene el suyo).
+     Arreglo: piso y paredes **Static**, con el mesh asignado en el constructor. Después: 0 correcciones ignoradas y el cliente
+     corre a ~595 cm/s visto desde el servidor (antes, ~60). Venía del Hito 1 y nunca se había visto porque ninguna prueba movía al cliente.
+  2. El ícono de reliquia hacía **crashear** el juego: `FCanvasTriangleItem` con textura `nullptr` dispara un assert. Arreglo: `GWhiteTexture`.
+  3. `-LabAutoRun=3,18` no andaba porque `FParse::Value` corta en la coma. Se pasó a `-LabAutoRunFrom/-LabAutoRunTo`.
+- ⚠️ Hubo **2 crashes de GPU** (Virtual Shadow Maps / Device Removed, RTX 5070, driver 621.14) **antes** del cambio a Static,
+  y **0 en 4 pruebas con render después**. No está confirmado que ese haya sido el motivo; si vuelve a pasar, la opción es
+  desactivar las Virtual Shadow Maps (`r.Shadow.Virtual.Enable=0`).
+- Prueba en LAN (`-LabAutoStamina -LabAutoRunFrom=3 -LabAutoRunTo=20`):
+  - Host: stamina 100 → 11 % corriendo a ~685 → `se quedó sin aire` → 230 → se recupera.
+  - Cliente: 40 de heridas (stamina topeada en 60 %) → corre, se agota y jadea → 70 más de heridas → `cayó`.
+  - Botiquín: `curado: -50`. Reliquia: −2,5 %/s y velocidad 248. ✅
+- **No implementado (no se pidió):** agacharse. `bCanCrouch` sigue desactivado y no tiene tecla.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

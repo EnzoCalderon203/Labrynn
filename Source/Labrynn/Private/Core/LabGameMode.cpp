@@ -7,6 +7,8 @@
 #include "Interact/LabRelic.h"
 #include "Interact/LabHeart.h"
 #include "Interact/LabBatteryPickup.h"
+#include "Interact/LabMedkitPickup.h"
+#include "Player/LabCharacterMovement.h"
 #include "Traps/LabSpikeTrap.h"
 #include "Traps/LabPitTrap.h"
 #include "Traps/LabGasTrap.h"
@@ -161,6 +163,49 @@ void ALabGameMode::StartPlay()
 		}), 30.f, false);
 	}
 
+	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
+	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
+	static bool bAutoStaminaDone = false;
+	if (!bAutoStaminaDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoStamina")))
+	{
+		bAutoStaminaDone = true;
+		auto Host = [this]() { APlayerController* PC = GetWorld()->GetFirstPlayerController(); return PC ? Cast<ALabCharacter>(PC->GetPawn()) : nullptr; };
+		auto Client = [this, Host]() { for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It) { if (*It != Host()) return *It; } return (ALabCharacter*)nullptr; };
+
+		// El correr lo hace cada PlayerController con -LabAutoRun=Desde,Hasta (input real, incluido el sprint predicho del cliente).
+		FTimerHandle TWound, TMed, TDown, TLog;
+		GetWorldTimerManager().SetTimer(TLog, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+			{
+				UE_LOG(LogLabrynn, Log, TEXT("[Stamina] t=%.0f %s %s: stamina=%.0f%% heridas=%.0f%% jadeando=%d vel=%.0f max=%.0f"),
+					GetWorld()->GetTimeSeconds(), *It->GetName(), It->IsLocallyControlled() ? TEXT("(host)") : TEXT("(cliente)"),
+					It->GetStamina01() * 100.f, It->GetWounds01() * 100.f, It->IsExhausted() ? 1 : 0,
+					It->GetVelocity().Size2D(), It->GetCharacterMovement()->GetMaxSpeed());
+			}
+		}), 2.f, true);
+		GetWorldTimerManager().SetTimer(TWound, FTimerDelegate::CreateWeakLambda(this, [Client]()
+		{
+			if (ALabCharacter* C = Client()) { C->AddWound(40.f); }
+		}), 20.f, false);
+		GetWorldTimerManager().SetTimer(TMed, FTimerDelegate::CreateWeakLambda(this, [this, Host]()
+		{
+			if (ALabCharacter* H = Host())
+			{
+				H->AddWound(30.f);
+				FActorSpawnParameters SP; SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				if (ALabMedkitPickup* M = GetWorld()->SpawnActor<ALabMedkitPickup>(ALabMedkitPickup::StaticClass(), FTransform(H->GetActorLocation()), SP))
+				{
+					M->Interact(H);
+				}
+			}
+		}), 38.f, false);
+		GetWorldTimerManager().SetTimer(TDown, FTimerDelegate::CreateWeakLambda(this, [Client]()
+		{
+			if (ALabCharacter* C = Client()) { C->AddWound(70.f, FVector(0.f, 0.f, 300.f)); }
+		}), 40.f, false);
+	}
+
 	// Prueba automática del gas: el host (con linterna prendida) pisa una trampa de gas.
 	static bool bAutoGasDone = false;
 	if (!bAutoGasDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoGas")))
@@ -288,7 +333,14 @@ void ALabGameMode::SpawnPickups()
 		GetWorld()->SpawnActor<ALabBatteryPickup>(BatteryClass ? *BatteryClass : ALabBatteryPickup::StaticClass(),
 			FTransform(Maze->CellToWorld(Cells[i]) + FVector(0.f, 0.f, 15.f)), P);
 	}
-	UE_LOG(LogLabrynn, Log, TEXT("Baterías: %d"), N);
+	// Botiquines: en los siguientes callejones de la lista (sin repetir celda con una batería).
+	const int32 MEnd = FMath::Min(N + MedkitCount, Cells.Num());
+	for (int32 i = N; i < MEnd; ++i)
+	{
+		GetWorld()->SpawnActor<ALabMedkitPickup>(MedkitClass ? *MedkitClass : ALabMedkitPickup::StaticClass(),
+			FTransform(Maze->CellToWorld(Cells[i]) + FVector(0.f, 0.f, 10.f)), P);
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Baterías: %d, botiquines: %d"), N, MEnd - N);
 }
 
 void ALabGameMode::SpawnTraps()

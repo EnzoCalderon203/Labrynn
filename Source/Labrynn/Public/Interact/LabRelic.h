@@ -36,7 +36,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|Relic")
 	ALabCharacter* GetCarrier() const { return Carrier; }
 
-	/** Multiplicador de velocidad de quien la carga. */
+	/** Obsoleto: la lentitud y el gasto de stamina por cargarla están en el Data Asset DA_Stamina. */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Relic", meta = (ClampMin = 0.1, ClampMax = 1.0))
 	float CarrySpeedMultiplier = 0.55f;
 

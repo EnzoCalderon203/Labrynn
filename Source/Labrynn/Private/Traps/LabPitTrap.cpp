@@ -1,6 +1,7 @@
 #include "Traps/LabPitTrap.h"
 
 #include "Player/LabCharacter.h"
+#include "Player/LabStaminaSettings.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/BoxComponent.h"
 #include "Engine/StaticMesh.h"
@@ -77,7 +78,9 @@ void ALabPitTrap::OnBottomOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiv
 	{
 		if (Ch->IsAliveAndFree())
 		{
-			Ch->KnockDown(FVector(0.f, 0.f, -100.f)); // golpe seco contra el fondo
+			// Herida por la caída y atrapado en el fondo (no se puede trepar): un compañero lo saca desde el borde.
+			Ch->AddWound(Ch->GetStaminaSettings()->PitWound);
+			Ch->KnockDown(FVector(0.f, 0.f, -100.f));
 		}
 	}
 }

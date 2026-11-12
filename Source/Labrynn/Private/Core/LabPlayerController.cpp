@@ -3,6 +3,7 @@
 #include "Core/LabCameraManager.h"
 #include "Online/LabSessionSubsystem.h"
 #include "Player/LabCharacter.h"
+#include "Player/LabCharacterMovement.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
@@ -45,6 +46,37 @@ void ALabPlayerController::ReturnToMenu()
 }
 
 #if !UE_BUILD_SHIPPING
+void ALabPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+	if (AutoRunFrom < 0.f)
+	{
+		// Dos parámetros separados: FParse::Value corta los valores en las comas.
+		if (!FParse::Value(FCommandLine::Get(), TEXT("LabAutoRunFrom="), AutoRunFrom) ||
+			!FParse::Value(FCommandLine::Get(), TEXT("LabAutoRunTo="), AutoRunTo))
+		{
+			AutoRunFrom = 1e9f;
+		}
+	}
+	const float T = GetWorld()->GetTimeSeconds();
+	ALabCharacter* Ch = Cast<ALabCharacter>(GetPawn());
+	if (!Ch || !IsLocalController())
+	{
+		return;
+	}
+	ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(Ch->GetCharacterMovement());
+	const bool bRun = T >= AutoRunFrom && T <= AutoRunTo;
+	if (CMC)
+	{
+		CMC->bWantsToSprint = bRun;
+	}
+	if (bRun)
+	{
+		// Ida y vuelta en el hall de entrada (eje Y), cambiando cada 0,5 s.
+		Ch->AddMovementInput(FVector(0.f, FMath::Fmod(T, 1.f) < 0.5f ? 1.f : -1.f, 0.f), 1.f);
+	}
+}
+
 void ALabPlayerController::SetupAutoShot()
 {
 	// Una sola vez por proceso: si el cliente se desconecta y recarga el mapa, no repetir.

@@ -56,7 +56,7 @@ bool ALabHeart::CanInteract(const ALabCharacter* By) const
 
 FText ALabHeart::GetInteractPrompt(const ALabCharacter* By) const
 {
-	return LOCTEXT("Use", "Usar el Corazón (revive a todos y recarga las luces, 1 vez)");
+	return LOCTEXT("Use", "Usar el Corazón (cura y revive a todos, recarga las luces; 1 vez)");
 }
 
 void ALabHeart::Interact(ALabCharacter* By)
@@ -73,9 +73,10 @@ void ALabHeart::Interact(ALabCharacter* By)
 	{
 		if (!It->IsAliveAndFree())
 		{
-			It->Revive(100.f);
+			It->Revive(0.f);
 			++Revived;
 		}
+		It->RestoreAll();   // sin heridas, stamina llena
 		It->AddBattery(1.f);
 	}
 	UE_LOG(LogLabrynn, Log, TEXT("Corazón usado por %s: %d revivido(s), linternas recargadas"), *By->GetName(), Revived);

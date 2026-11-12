@@ -35,6 +35,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups", meta = (ClampMin = 0, ClampMax = 20))
 	int32 BatteryCount = 6;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups")
+	TSubclassOf<class ALabMedkitPickup> MedkitClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups", meta = (ClampMin = 0, ClampMax = 20))
+	int32 MedkitCount = 3;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps")
 	TSubclassOf<class ALabSpikeTrap> SpikeTrapClass;
 

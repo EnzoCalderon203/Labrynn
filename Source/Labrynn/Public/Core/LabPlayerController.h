@@ -39,7 +39,11 @@ protected:
 	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
 
 #if !UE_BUILD_SHIPPING
+public:
+	/** Depuración: -LabAutoRunFrom=N -LabAutoRunTo=M corre ida y vuelta con Shift entre esos segundos (input real del jugador). */
+	virtual void PlayerTick(float DeltaTime) override;
 private:
+	float AutoRunFrom = -1.f, AutoRunTo = -1.f;
 	/** Depuración: -LabAutoShot=N saca captura a los N s (mirando al compañero más cercano); -LabAutoQuit cierra después. */
 	void SetupAutoShot();
 	void DoAutoShot();

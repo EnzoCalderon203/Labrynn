@@ -1,6 +1,7 @@
 #include "Traps/LabSpikeTrap.h"
 
 #include "Player/LabCharacter.h"
+#include "Player/LabStaminaSettings.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
@@ -110,7 +111,8 @@ void ALabSpikeTrap::ServerFire()
 {
 	for (ALabCharacter* Ch : GetCharactersInside())
 	{
+		// Herida + lanzamiento. Si las heridas llenan la barra, AddWound lo deja en ragdoll.
 		const FVector Side(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), 0.f);
-		Ch->KnockDown(Side.GetSafeNormal() * LaunchSide + FVector(0.f, 0.f, LaunchUp));
+		Ch->AddWound(Ch->GetStaminaSettings()->SpikeWound, Side.GetSafeNormal() * LaunchSide + FVector(0.f, 0.f, LaunchUp));
 	}
 }

@@ -1,9 +1,11 @@
-#include "UI/LabHUD.h"
+﻿#include "UI/LabHUD.h"
 
 #include "Player/LabCharacter.h"
 #include "Core/LabGameState.h"
 #include "Interact/LabInteractable.h"
 #include "Engine/Canvas.h"
+#include "CanvasItem.h"
+#include "RenderUtils.h" // GWhiteTexture: FCanvasTriangleItem exige textura (con nullptr el engine hace assert)
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
 
@@ -28,23 +30,64 @@ void ALabHUD::DrawHUD()
 		GetTextSize(G, GW, GH, Font, 1.5f);
 		DrawText(G, FLinearColor(0.7f, 1.f, 0.4f), (Canvas->ClipX - GW) * 0.5f, Canvas->ClipY * 0.3f, Font, 1.5f);
 	}
+	// ---- Esquina inferior izquierda: stamina (con heridas), linterna, reliquia ----
 	const float X = 32.f;
-	const float Y = Canvas->ClipY - 70.f;
+	const float BarW = 280.f;
 
-	if (Ch->HasFlashlight())
+	// 1) Barra única de stamina. [stamina | vacío | heridas] — las heridas ocupan el final, en rojo oscuro.
 	{
-		const float B = Ch->GetBattery();
-		const FLinearColor Col = B > 0.25f ? FLinearColor(0.95f, 0.85f, 0.6f) : FLinearColor(1.f, 0.3f, 0.2f);
-		DrawText(FString::Printf(TEXT("LINTERNA [F]  %3d%%"), FMath::RoundToInt(B * 100.f)), Col, X, Y, Font, 1.2f);
-
-		// Barra
-		const float W = 180.f, H = 8.f;
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, Y + 26.f, W, H);
-		DrawRect(Col, X, Y + 26.f, W * B, H);
+		const float Y = Canvas->ClipY - 112.f;
+		const float H = 14.f;
+		const float Stam = Ch->GetStamina01();
+		const float Wound = Ch->GetWounds01();
+		const bool bExh = Ch->IsExhausted();
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.65f), X - 2.f, Y - 2.f, BarW + 4.f, H + 4.f);
+		DrawRect(FLinearColor(0.12f, 0.12f, 0.12f, 0.9f), X, Y, BarW, H);                       // vacío recuperable
+		const FLinearColor StamCol = bExh ? FLinearColor(1.f, 0.55f, 0.1f) : FLinearColor(0.95f, 0.92f, 0.8f);
+		DrawRect(StamCol, X, Y, BarW * Stam, H);
+		if (Wound > 0.f)
+		{
+			// Bloque de heridas con rayas para distinguirlo del vacío.
+			const float WX = X + BarW * (1.f - Wound);
+			DrawRect(FLinearColor(0.45f, 0.05f, 0.05f, 1.f), WX, Y, BarW * Wound, H);
+			for (float SX = WX + 3.f; SX < X + BarW; SX += 8.f)
+			{
+				DrawRect(FLinearColor(0.7f, 0.1f, 0.1f, 1.f), SX, Y, 2.f, H);
+			}
+		}
+		const FString Label = bExh ? TEXT("¡SIN AIRE! (jadeando)") : (Wound > 0.f ? TEXT("STAMINA   [Shift] correr   (rojo = heridas)") : TEXT("STAMINA   [Shift] correr"));
+		DrawText(Label, bExh ? FLinearColor(1.f, 0.6f, 0.2f) : FLinearColor(0.75f, 0.75f, 0.75f), X, Y - 22.f, Font, 1.f);
 	}
-	else
+
+	// 2) Linterna.
 	{
-		DrawText(TEXT("SIN LINTERNA - quedate cerca del grupo"), FLinearColor(0.6f, 0.6f, 0.65f), X, Y, Font, 1.2f);
+		const float Y = Canvas->ClipY - 58.f;
+		if (Ch->HasFlashlight())
+		{
+			const float B = Ch->GetBattery();
+			const FLinearColor Col = B > 0.25f ? FLinearColor(0.95f, 0.85f, 0.6f) : FLinearColor(1.f, 0.3f, 0.2f);
+			DrawText(FString::Printf(TEXT("LINTERNA [F]  %3d%%"), FMath::RoundToInt(B * 100.f)), Col, X, Y, Font, 1.f);
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, Y + 22.f, 180.f, 7.f);
+			DrawRect(Col, X, Y + 22.f, 180.f * B, 7.f);
+		}
+		else
+		{
+			DrawText(TEXT("SIN LINTERNA - quedate cerca del grupo"), FLinearColor(0.6f, 0.6f, 0.65f), X, Y, Font, 1.f);
+		}
+	}
+
+	// 3) Ícono de reliquia (rombo celeste) a la derecha de la barra.
+	if (Ch->IsCarryingRelic())
+	{
+		const FVector2D C(X + BarW + 34.f, Canvas->ClipY - 100.f);
+		const float R = 16.f;
+		FCanvasTriangleItem Top(FVector2D(C.X, C.Y - R), FVector2D(C.X - R * 0.7f, C.Y), FVector2D(C.X + R * 0.7f, C.Y), GWhiteTexture);
+		FCanvasTriangleItem Bot(FVector2D(C.X, C.Y + R), FVector2D(C.X - R * 0.7f, C.Y), FVector2D(C.X + R * 0.7f, C.Y), GWhiteTexture);
+		Top.SetColor(FLinearColor(0.4f, 0.85f, 1.f));
+		Bot.SetColor(FLinearColor(0.25f, 0.6f, 0.85f));
+		Canvas->DrawItem(Top);
+		Canvas->DrawItem(Bot);
+		DrawText(TEXT("RELIQUIA"), FLinearColor(0.4f, 0.85f, 1.f), C.X + 22.f, C.Y - 9.f, Font, 1.f);
 	}
 
 	// Estado propio: caído o muerto.
@@ -85,10 +128,6 @@ void ALabHUD::DrawHUD()
 		}
 	}
 
-	if (Ch->IsCarryingRelic())
-	{
-		DrawText(TEXT("LLEVÁS LA RELIQUIA (lento, sin linterna)"), FLinearColor(0.4f, 0.85f, 1.f), X, Y - 34.f, Font, 1.1f);
-	}
 
 	// Texto de interacción en el centro.
 	if (const AActor* Target = Ch->FindBestInteractable())

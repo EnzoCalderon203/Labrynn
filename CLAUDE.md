@@ -1,4 +1,4 @@
-# CLAUDE.md — Labrynn (2026 Epic AI MegaJam)
+﻿# CLAUDE.md — Labrynn (2026 Epic AI MegaJam)
 
 Contexto permanente para Claude Code. Leelo completo antes de tocar el proyecto.
 
@@ -62,6 +62,16 @@ música adaptativa y arte custom elaborado.
 - **La seed del laberinto** la elige el GameMode del host y la guarda `ALabGameState::MazeSeed` (RepNotify).
   Cada máquina construye el mismo laberinto en local con `FRandomStream`. Las paredes no se replican.
 - **Conexión online:** Online Subsystem Steam con AppID 480 (ver DEVLOG). Fallback: IP directa.
+
+## Controles (provisorios, BindKey en C++; faltan Input Actions propias)
+WASD moverse · mouse mirar · Espacio saltar (gasta stamina) · **Shift correr** · F linterna · E interactuar · Esc menú.
+Agacharse: no existe.
+
+## Stamina / heridas (estilo Peak)
+Una sola barra; las heridas bloquean la parte de arriba; si la llenan → caído. Valores en `/Game/Labrynn/Core/DA_Stamina`.
+El sprint va en los saved moves (`ULabCharacterMovement`), nunca por RPC.
+**El piso del laberinto tiene que ser Static**: si es Movable, el cliente no puede resolver la base de movimiento (ALabMaze no se replica)
+e ignora las correcciones del servidor.
 
 ## Convenciones de código
 

@@ -47,7 +47,7 @@ class LABRYNN_API ALabCharacter : public ACharacter, public ILabInteractable
 	TObjectPtr<USpotLightComponent> Flashlight;
 
 public:
-	ALabCharacter();
+	ALabCharacter(const FObjectInitializer& ObjectInitializer);
 
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -88,6 +88,9 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoJumpEnd();
+
+	virtual bool CanJumpInternal_Implementation() const override;
+	virtual void OnJumped_Implementation() override;
 
 	// --- Linterna (replicada) ---
 	/** Tecla F: alterna la linterna. Se pide al servidor, que replica el estado. */
@@ -179,8 +182,36 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|State")
 	ELabLifeState GetLifeState() const { return LifeState; }
 
-	UFUNCTION(BlueprintPure, Category = "Lab|State")
-	float GetHealth() const { return Health; }
+	// --- Stamina y heridas (una sola barra, estilo Peak) ---
+
+	/** Stamina actual 0..1 (relativa a MaxStamina). */
+	UFUNCTION(BlueprintPure, Category = "Lab|Stamina")
+	float GetStamina01() const { return StaminaByte / 255.f; }
+
+	/** Heridas 0..1 (relativas a MaxStamina): bloquean la parte de arriba de la barra. */
+	UFUNCTION(BlueprintPure, Category = "Lab|Stamina")
+	float GetWounds01() const { return WoundsByte / 255.f; }
+
+	/** Jadeando: stamina agotada, lento, hace ruido. */
+	UFUNCTION(BlueprintPure, Category = "Lab|Stamina")
+	bool IsExhausted() const { return bExhausted; }
+
+	/** ¿Puede correr ahora? (vivo, no jadea, tiene stamina). */
+	bool CanSprint() const;
+
+	/** Velocidad máxima según estado. La usa ULabCharacterMovement (cliente y servidor). */
+	float GetDesiredMaxSpeed(bool bWantsSprint) const;
+
+	/** Solo servidor. Suma heridas; si llenan la barra, cae. Impulse = empujón (lanzamiento o ragdoll). */
+	void AddWound(float Amount, const FVector& Impulse = FVector::ZeroVector);
+
+	/** Solo servidor. Cura heridas (botiquín). */
+	void HealWounds(float Amount);
+
+	/** Solo servidor. Sin heridas y stamina llena (Corazón del Laberinto). */
+	void RestoreAll();
+
+	const class ULabStaminaSettings* GetStaminaSettings() const;
 
 	/** 0..1 mientras alguien lo está levantando. */
 	UFUNCTION(BlueprintPure, Category = "Lab|State")
@@ -193,8 +224,8 @@ public:
 	/** Solo servidor. Lo deja caído (trampas, caídas). Impulse = empujón cosmético del ragdoll. */
 	void KnockDown(const FVector& Impulse = FVector::ZeroVector);
 
-	/** Solo servidor. Lo levanta con HealthAfter de salud (rescate o Corazón). Sirve también para muertos. */
-	void Revive(float HealthAfter = 50.f);
+	/** Solo servidor. Lo levanta (rescate o Corazón). WoundsAfter < 0: usa WoundsAfterRevive del Data Asset. Sirve para muertos. */
+	void Revive(float WoundsAfter = -1.f);
 
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
@@ -204,8 +235,29 @@ public:
 	virtual FText GetInteractPrompt(const ALabCharacter* By) const override;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|State")
-	float MaxHealth = 100.f;
+	/** Valores de stamina/heridas/velocidades. Por defecto /Game/Labrynn/Core/DA_Stamina. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Stamina")
+	TObjectPtr<class ULabStaminaSettings> StaminaSettings;
+
+	UPROPERTY(Replicated)
+	uint8 StaminaByte = 255;
+
+	UPROPERTY(Replicated)
+	uint8 WoundsByte = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Exhausted)
+	bool bExhausted = false;
+
+	UFUNCTION()
+	void OnRep_Exhausted();
+
+	/** Shift: correr (va dentro de los saved moves del movimiento, ver ULabCharacterMovement). */
+	void SprintPressed();
+	void SprintReleased();
+
+	/** Respiración agitada (loop mientras jadea). */
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> BreathAudio;
 
 	/** Segundos caído antes de morir. */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|State")
@@ -217,9 +269,6 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_LifeState, BlueprintReadOnly, Category = "Lab|State")
 	ELabLifeState LifeState = ELabLifeState::Alive;
-
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lab|State")
-	float Health = 100.f;
 
 	UPROPERTY(Replicated)
 	uint8 ReviveByte = 0;
@@ -248,6 +297,17 @@ private:
 	bool bRagdoll = false;
 	EVisibilityBasedAnimTickOption SavedTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
 
+	// Stamina (precisa, solo servidor; los Byte son la versión replicada).
+	void TickStamina(float DeltaSeconds);
+	void SpendStamina(float Amount);
+	void SyncStaminaBytes();
+	void ApplyExhaustedEffects();
+	float StaminaServer = 100.f;
+	float WoundsServer = 0.f;
+	float LastSpendTime = -100.f;
+	float ExhaustedUntil = 0.f;
+	float NextBreathNoise = 0.f;
+
 public:
 	/** Solo servidor. */
 	void SetHasFlashlight(bool bHas);
@@ -274,7 +334,6 @@ private:
 	void UpdateFlashlightIntensity(float DeltaSeconds);
 
 	TWeakObjectPtr<class ALabRelic> CarriedRelic;
-	float BaseWalkSpeed = 450.f;
 
 	/** Batería precisa (solo servidor); BatteryByte es su versión replicada. */
 	float BatteryServer = 1.f;

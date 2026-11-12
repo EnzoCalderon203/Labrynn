@@ -1,4 +1,4 @@
-using UnrealBuildTool;
+﻿using UnrealBuildTool;
 
 public class Labrynn : ModuleRules
 {
@@ -15,6 +15,8 @@ public class Labrynn : ModuleRules
 			"UMG",
 			"Slate",
 			"SlateCore",
+			"RenderCore",
+			"AIModule",          // UAISense_Hearing: el jadeo emite ruido para una IA futura
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils"
 		});
@@ -23,3 +25,4 @@ public class Labrynn : ModuleRules
 		DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 	}
 }
+

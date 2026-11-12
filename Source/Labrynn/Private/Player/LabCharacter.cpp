@@ -17,11 +17,24 @@
 #include "Interact/LabRelic.h"
 #include "Core/LabGameState.h"
 #include "Maze/LabMaze.h"
+#include "Player/LabCharacterMovement.h"
+#include "Player/LabStaminaSettings.h"
+#include "Perception/AISense_Hearing.h"
+#include "Kismet/GameplayStatics.h"
+#include "Components/AudioComponent.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Labrynn.h"
 
-ALabCharacter::ALabCharacter()
+ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<ULabCharacterMovement>(ACharacter::CharacterMovementComponentName))
 {
 	bReplicates = true;
+
+	static ConstructorHelpers::FObjectFinder<ULabStaminaSettings> StaminaDA(TEXT("/Game/Labrynn/Core/DA_Stamina.DA_Stamina"));
+	if (StaminaDA.Succeeded())
+	{
+		StaminaSettings = StaminaDA.Object;
+	}
 
 	GetCapsuleComponent()->InitCapsuleSize(34.f, 96.f);
 
@@ -79,10 +92,11 @@ void ALabCharacter::BeginPlay()
 #endif
 	Flashlight->SetIntensity(FlashlightIntensity);
 	Flashlight->SetAttenuationRadius(FlashlightRange);
-	BaseWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
 	MeshRelativeTransform = GetMesh()->GetRelativeTransform();
 	CameraRelativeTransform = FirstPersonCameraComponent->GetRelativeTransform();
-	Health = MaxHealth;
+	StaminaServer = GetStaminaSettings()->MaxStamina;
+	WoundsServer = 0.f;
+	SyncStaminaBytes();
 	PersonalGlow->SetIntensity(PersonalGlowIntensity);
 	PersonalGlow->SetAttenuationRadius(PersonalGlowRadius);
 	ApplyFlashlightState();
@@ -101,7 +115,9 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, bHasFlashlight);
 	DOREPLIFETIME(ALabCharacter, BatteryByte);
 	DOREPLIFETIME(ALabCharacter, LifeState);
-	DOREPLIFETIME(ALabCharacter, Health);
+	DOREPLIFETIME(ALabCharacter, StaminaByte);
+	DOREPLIFETIME(ALabCharacter, WoundsByte);
+	DOREPLIFETIME(ALabCharacter, bExhausted);
 	DOREPLIFETIME(ALabCharacter, ReviveByte);
 	DOREPLIFETIME(ALabCharacter, DownedAtServerTime);
 	DOREPLIFETIME(ALabCharacter, DownImpulse);
@@ -143,14 +159,200 @@ float ALabCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEvent, A
 	{
 		return 0.f;
 	}
+	// El daño genérico se convierte en heridas (no hay barra de vida aparte).
 	const float Applied = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
-	Health = FMath::Max(0.f, Health - Applied);
-	if (Health <= 0.f)
-	{
-		const FVector Push = DamageCauser ? (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal() * 300.f : FVector::ZeroVector;
-		KnockDown(Push + FVector(0, 0, 200.f));
-	}
+	const FVector Push = DamageCauser ? (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal() * 300.f : FVector::ZeroVector;
+	AddWound(Applied, Push);
 	return Applied;
+}
+
+// ---------------------------------------------------------------- Stamina y heridas
+
+const ULabStaminaSettings* ALabCharacter::GetStaminaSettings() const
+{
+	return StaminaSettings ? StaminaSettings.Get() : GetDefault<ULabStaminaSettings>();
+}
+
+bool ALabCharacter::CanSprint() const
+{
+	return IsAliveAndFree() && !bExhausted && StaminaByte > 0;
+}
+
+float ALabCharacter::GetDesiredMaxSpeed(bool bWantsSprint) const
+{
+	const ULabStaminaSettings* S = GetStaminaSettings();
+	float Speed = S->WalkSpeed;
+	if (bExhausted)
+	{
+		Speed = S->ExhaustedSpeed;
+	}
+	else if (bWantsSprint && CanSprint())
+	{
+		Speed = S->SprintSpeed;
+	}
+	if (IsCarryingRelic())
+	{
+		Speed *= S->RelicSpeedMultiplier;
+	}
+	return Speed;
+}
+
+void ALabCharacter::SyncStaminaBytes()
+{
+	const float Max = GetStaminaSettings()->MaxStamina;
+	StaminaByte = static_cast<uint8>(FMath::Clamp(FMath::CeilToInt(StaminaServer / Max * 255.f), 0, 255));
+	WoundsByte = static_cast<uint8>(FMath::Clamp(FMath::CeilToInt(WoundsServer / Max * 255.f), 0, 255));
+}
+
+void ALabCharacter::SpendStamina(float Amount)
+{
+	if (!HasAuthority() || Amount <= 0.f)
+	{
+		return;
+	}
+	StaminaServer = FMath::Max(0.f, StaminaServer - Amount);
+	LastSpendTime = GetWorld()->GetTimeSeconds();
+	if (StaminaServer <= 0.f && !bExhausted)
+	{
+		bExhausted = true;
+		ExhaustedUntil = GetWorld()->GetTimeSeconds() + GetStaminaSettings()->ExhaustedSeconds;
+		NextBreathNoise = 0.f;
+		UE_LOG(LogLabrynn, Log, TEXT("%s se quedó sin aire (jadeando %.1fs)"), *GetName(), GetStaminaSettings()->ExhaustedSeconds);
+		ApplyExhaustedEffects();
+	}
+}
+
+void ALabCharacter::TickStamina(float DeltaSeconds)
+{
+	if (!HasAuthority() || !IsAliveAndFree())
+	{
+		return;
+	}
+	const ULabStaminaSettings* S = GetStaminaSettings();
+	const float Now = GetWorld()->GetTimeSeconds();
+
+	// Gastos
+	const ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(GetCharacterMovement());
+	if (CMC && CMC->IsSprintingNow())
+	{
+		SpendStamina(S->SprintDrainPerSecond * DeltaSeconds);
+	}
+	if (IsCarryingRelic())
+	{
+		SpendStamina(S->RelicDrainPerSecond * DeltaSeconds);
+	}
+
+	// Jadeo: ruido periódico (lo puede escuchar una IA con AI Perception: Hearing) y fin del jadeo.
+	if (bExhausted)
+	{
+		if (Now >= NextBreathNoise)
+		{
+			NextBreathNoise = Now + S->BreathNoiseInterval;
+			UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), S->BreathNoiseLoudness, this, S->BreathNoiseRange, FName("Jadeo"));
+		}
+		if (Now >= ExhaustedUntil)
+		{
+			bExhausted = false;
+			ApplyExhaustedEffects();
+		}
+	}
+
+	// Recuperación (también durante el jadeo, para salir con algo de aire).
+	const float UsableMax = FMath::Max(0.f, S->MaxStamina - WoundsServer);
+	if (Now - LastSpendTime >= S->RegenDelay || bExhausted)
+	{
+		StaminaServer = FMath::Min(UsableMax, StaminaServer + S->RegenPerSecond * DeltaSeconds);
+	}
+	StaminaServer = FMath::Min(StaminaServer, UsableMax);
+	SyncStaminaBytes();
+}
+
+void ALabCharacter::AddWound(float Amount, const FVector& Impulse)
+{
+	if (!HasAuthority() || !IsAliveAndFree() || Amount <= 0.f)
+	{
+		return;
+	}
+	const ULabStaminaSettings* S = GetStaminaSettings();
+	WoundsServer = FMath::Min(S->MaxStamina, WoundsServer + Amount);
+	StaminaServer = FMath::Min(StaminaServer, S->MaxStamina - WoundsServer);
+	SyncStaminaBytes();
+	UE_LOG(LogLabrynn, Log, TEXT("%s herido: +%.0f (heridas %.0f/%.0f)"), *GetName(), Amount, WoundsServer, S->MaxStamina);
+
+	if (WoundsServer >= S->MaxStamina)
+	{
+		KnockDown(Impulse); // las heridas llenaron la barra: ragdoll
+	}
+	else if (!Impulse.IsNearlyZero())
+	{
+		LaunchCharacter(Impulse, true, true); // empujón sin caer
+	}
+}
+
+void ALabCharacter::HealWounds(float Amount)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	WoundsServer = FMath::Max(0.f, WoundsServer - Amount);
+	SyncStaminaBytes();
+	UE_LOG(LogLabrynn, Log, TEXT("%s curado: -%.0f (heridas %.0f)"), *GetName(), Amount, WoundsServer);
+}
+
+void ALabCharacter::RestoreAll()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	WoundsServer = 0.f;
+	StaminaServer = GetStaminaSettings()->MaxStamina;
+	bExhausted = false;
+	ApplyExhaustedEffects();
+	SyncStaminaBytes();
+}
+
+void ALabCharacter::OnRep_Exhausted()
+{
+	ApplyExhaustedEffects();
+}
+
+void ALabCharacter::ApplyExhaustedEffects()
+{
+	// Respiración agitada: se escucha en todas las máquinas (y delata al grupo).
+	const ULabStaminaSettings* S = GetStaminaSettings();
+	if (bExhausted && S->BreathSound && GetNetMode() != NM_DedicatedServer)
+	{
+		if (!BreathAudio)
+		{
+			BreathAudio = UGameplayStatics::SpawnSoundAttached(S->BreathSound, GetCapsuleComponent());
+		}
+		else
+		{
+			BreathAudio->Play();
+		}
+	}
+	else if (!bExhausted && BreathAudio)
+	{
+		BreathAudio->FadeOut(0.6f, 0.f);
+	}
+}
+
+void ALabCharacter::SprintPressed()
+{
+	if (ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(GetCharacterMovement()))
+	{
+		CMC->bWantsToSprint = true;
+	}
+}
+
+void ALabCharacter::SprintReleased()
+{
+	if (ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(GetCharacterMovement()))
+	{
+		CMC->bWantsToSprint = false;
+	}
 }
 
 void ALabCharacter::KnockDown(const FVector& Impulse)
@@ -166,8 +368,9 @@ void ALabCharacter::KnockDown(const FVector& Impulse)
 	}
 
 	const ELabLifeState Old = LifeState;
-	Health = 0.f;
 	LifeState = ELabLifeState::Downed;
+	bExhausted = false;
+	ApplyExhaustedEffects();
 	DownImpulse = Impulse;
 	if (const AGameStateBase* GS = GetWorld()->GetGameState())
 	{
@@ -180,7 +383,7 @@ void ALabCharacter::KnockDown(const FVector& Impulse)
 	ApplyLifeState(Old);
 }
 
-void ALabCharacter::Revive(float HealthAfter)
+void ALabCharacter::Revive(float WoundsAfter)
 {
 	check(HasAuthority());
 	if (LifeState == ELabLifeState::Alive)
@@ -208,11 +411,15 @@ void ALabCharacter::Revive(float HealthAfter)
 
 	const ELabLifeState Old = LifeState;
 	LifeState = ELabLifeState::Alive;
-	Health = FMath::Clamp(HealthAfter, 1.f, MaxHealth);
+	const ULabStaminaSettings* S = GetStaminaSettings();
+	// Se levanta herido (nunca con la barra llena de heridas, o volvería a caer).
+	WoundsServer = FMath::Clamp(WoundsAfter < 0.f ? S->WoundsAfterRevive : WoundsAfter, 0.f, S->MaxStamina * 0.9f);
+	StaminaServer = S->MaxStamina - WoundsServer;
+	SyncStaminaBytes();
 	ReviveProgressServer = 0.f;
 	ReviveByte = 0;
 	Reviver.Reset();
-	UE_LOG(LogLabrynn, Log, TEXT("%s se levantó (salud %.0f)"), *GetName(), Health);
+	UE_LOG(LogLabrynn, Log, TEXT("%s se levantó (heridas %.0f)"), *GetName(), WoundsServer);
 	ApplyLifeState(Old);
 }
 
@@ -322,7 +529,7 @@ void ALabCharacter::TickRevive(float DeltaSeconds)
 		ReviveProgressServer += DeltaSeconds / FMath::Max(0.1f, ReviveSeconds);
 		if (ReviveProgressServer >= 1.f)
 		{
-			Revive(50.f);
+			Revive();
 			return;
 		}
 	}
@@ -367,6 +574,8 @@ void ALabCharacter::Tick(float DeltaSeconds)
 			ApplyFlashlightState();
 		}
 	}
+
+	TickStamina(DeltaSeconds);
 
 	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
 	if (HasAuthority() && LifeState == ELabLifeState::Downed)
@@ -460,6 +669,8 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	// Teclas sin asset de input (temporal hasta tener IA_ propios).
 	PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ALabCharacter::ToggleFlashlightInput);
 	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ALabCharacter::InteractInput);
+	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ALabCharacter::SprintPressed);
+	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ALabCharacter::SprintReleased);
 }
 
 // ---------------------------------------------------------------- Interacción
@@ -549,9 +760,8 @@ void ALabCharacter::ServerInteract_Implementation()
 
 void ALabCharacter::SetCarriedRelic(ALabRelic* Relic, float SpeedMultiplier)
 {
+	// La velocidad la calcula ULabCharacterMovement::GetMaxSpeed a partir de este estado (en todas las máquinas).
 	CarriedRelic = Relic;
-	// Se aplica en todas las máquinas (servidor y cliente dueño deben coincidir para la predicción de movimiento).
-	GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed * SpeedMultiplier;
 
 	if (Relic)
 	{
@@ -592,6 +802,17 @@ void ALabCharacter::DoMove(float Right, float Forward)
 		AddMovementInput(GetActorRightVector(), Right);
 		AddMovementInput(GetActorForwardVector(), Forward);
 	}
+}
+
+bool ALabCharacter::CanJumpInternal_Implementation() const
+{
+	return Super::CanJumpInternal_Implementation() && !bExhausted && IsAliveAndFree();
+}
+
+void ALabCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+	SpendStamina(GetStaminaSettings()->JumpCost); // solo actúa en el servidor
 }
 
 void ALabCharacter::DoJumpStart()

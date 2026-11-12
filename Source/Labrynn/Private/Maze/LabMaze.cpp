@@ -14,9 +14,11 @@ namespace
 	{
 		UInstancedStaticMeshComponent* C = Owner->CreateDefaultSubobject<UInstancedStaticMeshComponent>(Name);
 		C->SetupAttachment(Parent);
-		// Movable: en los clientes el laberinto se construye después de BeginPlay, y
-		// SetStaticMesh falla en componentes Static ya registrados. (Sin luz estática no hay costo extra.)
-		C->SetMobility(EComponentMobility::Movable);
+		// STATIC a propósito: si el piso fuera Movable, el CharacterMovement lo trata como "base dinámica" y el
+		// servidor manda las posiciones relativas al ALabMaze, que NO se replica (cada máquina tiene el suyo).
+		// El cliente no puede resolver esa base e ignora TODAS las correcciones (bug encontrado con -LabAutoRun).
+		// El mesh se asigna en el constructor (SetStaticMesh falla en Static ya registrados).
+		C->SetMobility(EComponentMobility::Static);
 		C->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 		C->SetCanEverAffectNavigation(false);
 		return C;
@@ -29,7 +31,7 @@ ALabMaze::ALabMaze()
 	bReplicates = false; // se construye localmente en cada máquina
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	Root->SetMobility(EComponentMobility::Movable);
+	Root->SetMobility(EComponentMobility::Static);
 	RootComponent = Root;
 
 	// Exposición fija: sin esto la auto-exposición "aclara" la oscuridad y arruina el juego.
@@ -64,6 +66,16 @@ ALabMaze::ALabMaze()
 	if (WallGrid.Succeeded())  { WallMaterial = WallGrid.Object; }
 	if (FloorGrid.Succeeded()) { FloorMaterial = FloorGrid.Object; }
 	if (CeilGrid.Succeeded())  { CeilingMaterial = CeilGrid.Object; }
+
+	// Mesh y materiales por defecto ya en el constructor (componentes Static).
+	for (UInstancedStaticMeshComponent* C : { Walls.Get(), Floors.Get(), Ceilings.Get(), ExitDoor.Get() })
+	{
+		C->SetStaticMesh(BlockMesh);
+	}
+	Walls->SetMaterial(0, WallMaterial);
+	ExitDoor->SetMaterial(0, WallMaterial);
+	Floors->SetMaterial(0, FloorMaterial);
+	Ceilings->SetMaterial(0, CeilingMaterial);
 }
 
 void ALabMaze::BeginPlay()
@@ -83,7 +95,10 @@ void ALabMaze::Build(int32 InSeed)
 
 	for (UInstancedStaticMeshComponent* C : { Walls.Get(), Floors.Get(), Ceilings.Get(), ExitDoor.Get() })
 	{
-		C->SetStaticMesh(BlockMesh);
+		if (C->GetStaticMesh() != BlockMesh)
+		{
+			C->SetStaticMesh(BlockMesh); // solo si un Blueprint hijo cambió el mesh
+		}
 		C->ClearInstances();
 	}
 #if !UE_BUILD_SHIPPING

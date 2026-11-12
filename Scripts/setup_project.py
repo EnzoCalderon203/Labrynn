@@ -44,6 +44,22 @@ def ensure_map(name=MAP_NAME, game_mode_class=None):
     unreal.EditorAssetLibrary.save_loaded_asset(world, only_if_is_dirty=False)
 
 
+def ensure_data_asset(name, folder, cls):
+    """Crea un Data Asset de la clase C++ dada si no existe (los valores por defecto salen del C++)."""
+    path = f"{folder}/{name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        log(f"Data Asset ya existe: {path}")
+        return
+    factory = unreal.DataAssetFactory()
+    factory.set_editor_property("data_asset_class", cls)
+    asset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, folder, cls, factory)
+    if asset is None:
+        unreal.log_error(f"[LabSetup] No se pudo crear {path}")
+        return
+    unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False)
+    log(f"Data Asset creado: {path}")
+
+
 def describe_bp(path):
     cls = unreal.EditorAssetLibrary.load_blueprint_class(path)
     if cls is None:
@@ -70,6 +86,7 @@ def describe_bp(path):
 def main():
     ensure_map("L_Labrynn", unreal.LabGameMode.static_class())
     ensure_map("L_Menu", unreal.LabMenuGameMode.static_class())
+    ensure_data_asset("DA_Stamina", "/Game/Labrynn/Core", unreal.LabStaminaSettings)
 
     ch = describe_bp("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter")
     if ch is not None:

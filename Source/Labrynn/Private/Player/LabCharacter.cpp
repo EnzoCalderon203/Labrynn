@@ -123,6 +123,8 @@ void ALabCharacter::BeginPlay()
 #endif
 	MeshRelativeTransform = GetMesh()->GetRelativeTransform();
 	CameraRelativeTransform = FirstPersonCameraComponent->GetRelativeTransform();
+	FirstPersonMeshBaseRel = FirstPersonMesh->GetRelativeLocation();
+	BodyBaseScale = GetMesh()->GetRelativeScale3D();
 	StaminaServer = GetStaminaSettings()->MaxStamina;
 	GetCharacterMovement()->SetCrouchedHalfHeight(GetGameplaySettings()->CrouchedHalfHeight);
 	WoundsServer = 0.f;
@@ -245,6 +247,23 @@ void ALabCharacter::TickEyes(float DeltaSeconds)
 	if (!IsLocallyControlled() || !FirstPersonCameraComponent)
 	{
 		return;
+	}
+
+	// Visión mínima: luz suave, sin sombras, que existe solo en esta máquina (el resto no la ve).
+	if (!LocalVisionLight && V->MinVisionIntensity > 0.f)
+	{
+		LocalVisionLight = NewObject<UPointLightComponent>(this, TEXT("LocalVisionLight"));
+		LocalVisionLight->SetupAttachment(FirstPersonCameraComponent);
+		LocalVisionLight->SetIntensityUnits(ELightUnits::Unitless);
+		LocalVisionLight->bUseInverseSquaredFalloff = false;
+		LocalVisionLight->SetLightFalloffExponent(2.f);
+		LocalVisionLight->SetCastShadows(false);
+		LocalVisionLight->SetIntensity(V->MinVisionIntensity);
+		LocalVisionLight->SetAttenuationRadius(V->MinVisionRadius);
+		LocalVisionLight->SetLightColor(V->MinVisionColor);
+		LocalVisionLight->SetIsReplicated(false);
+		LocalVisionLight->RegisterComponent();
+		UE_LOG(LogLabrynn, Log, TEXT("Visión mínima: luz local %.2f, alcance %.0f"), V->MinVisionIntensity, V->MinVisionRadius);
 	}
 
 	// ¿Hay un farol encendido cerca? ¿Estoy mirando uno de frente y de cerca?
@@ -1140,6 +1159,7 @@ void ALabCharacter::Tick(float DeltaSeconds)
 	TickVoice(DeltaSeconds);
 	TickEyes(DeltaSeconds);
 	TickHelp(DeltaSeconds);
+	TickCrouchVisual(DeltaSeconds);
 	if (IsLocallyControlled())
 	{
 		TickCarryHold();
@@ -1610,6 +1630,31 @@ void ALabCharacter::CrouchPressed()
 void ALabCharacter::CrouchReleased()
 {
 	UnCrouch();
+}
+
+void ALabCharacter::TickCrouchVisual(float DeltaSeconds)
+{
+	// El motor compensa la cápsula subiendo el modelo, así que la cabeza (y la cámara pegada a ella) no bajaba.
+	const float Target = (bIsCrouched && !bRagdoll && !CarriedBy) ? 1.f : 0.f;
+	const float Old = CrouchVisualAlpha;
+	CrouchVisualAlpha = FMath::FInterpTo(CrouchVisualAlpha, Target, DeltaSeconds, 10.f);
+	if (FMath::IsNearlyEqual(Old, CrouchVisualAlpha) && FMath::IsNearlyEqual(CrouchVisualAlpha, Target))
+	{
+		return;
+	}
+	const float StandHalf = GetClass()->GetDefaultObject<ALabCharacter>()->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+	const float Drop = 2.f * (StandHalf - GetCharacterMovement()->GetCrouchedHalfHeight()) * 0.85f;
+	if (IsLocallyControlled())
+	{
+		// Mi vista: bajan los brazos y con ellos la cámara (pegada a la cabeza de los brazos).
+		FirstPersonMesh->SetRelativeLocation(FirstPersonMeshBaseRel - FVector(0.f, 0.f, Drop * CrouchVisualAlpha));
+	}
+	else
+	{
+		// Los demás: el cuerpo se achica hacia los pies (provisorio hasta tener animación de agachado).
+		const float ScaleZ = FMath::Lerp(1.f, 0.62f, CrouchVisualAlpha);
+		GetMesh()->SetRelativeScale3D(FVector(BodyBaseScale.X, BodyBaseScale.Y, BodyBaseScale.Z * ScaleZ));
+	}
 }
 
 bool ALabCharacter::CanJumpInternal_Implementation() const

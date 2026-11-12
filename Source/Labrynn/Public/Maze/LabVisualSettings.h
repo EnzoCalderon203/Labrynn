@@ -87,6 +87,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Encandilamiento")
 	float GlareSeconds = 1.2f;
 
+	// --- Visión mínima (luz suave solo en TU pantalla: no ilumina a los demás ni delata) ---
+	/** Brillo de la luz de visión local (sin unidades, caída suave). 0 = desactivada. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visión mínima", meta = (ClampMin = 0))
+	float MinVisionIntensity = 0.04f;
+
+	/** Alcance (cm): más allá queda negro. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visión mínima", meta = (ClampMin = 100))
+	float MinVisionRadius = 1100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visión mínima")
+	FLinearColor MinVisionColor = FLinearColor(0.62f, 0.7f, 0.85f);
+
 	// --- Silueta de compañeros ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Silueta")
 	float PersonalGlowIntensity = 14.f;

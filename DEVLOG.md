@@ -450,6 +450,14 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - `Fase -> Lost` → 4 premios en el servidor y `Premios recibidos: 4` en el cliente. ✅
 - Corregido en la prueba: las heridas contaban el golpe bruto (500) y no lo que realmente se sumó (100).
 - Build **Shipping** de verificación OK: zip de 291 MB.
+**20:08 · Pedido de Enzo jugando: "sin farol no se ve nada" y "no se agacha"**
+- **Visión mínima:** luz suave **solo en la máquina de cada jugador** (point light sin unidades, caída suave, sin sombras, pegada a la cámara).
+  Da un piso de visibilidad, ~11 m que se apagan a negro, sin iluminar la pantalla de los demás ni delatar a nadie. `DA_Visuals` → *Visión mínima*.
+  Primera calibración: con 1,5 la pantalla quedó blanca (la exposición alta la multiplica). **0,04** = pasillo gris tenue, fondo negro (verificado con captura).
+- **Agacharse "no hacía nada":** la cápsula sí se achicaba (los túneles se pasaban), pero el motor sube el modelo para compensar,
+  y la cámara está pegada a la cabeza del modelo, así que la vista no bajaba.
+  Ahora, con `TickCrouchVisual`, tus brazos y tu cámara bajan ~70 cm en forma suave y los demás ven tu cuerpo achicado hacia los pies
+  (provisorio hasta tener animación). Verificado con C real y captura: cámara a la altura del túnel.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

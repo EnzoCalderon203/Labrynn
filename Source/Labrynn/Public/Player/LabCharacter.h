@@ -330,6 +330,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
 	float PersonalGlowRadius = 220.f;
 
+	/** Visión mínima: solo existe en la máquina del dueño. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UPointLightComponent> LocalVisionLight;
+
+	// Agachado visual: la cámara y los brazos bajan (local) y el cuerpo se ve más bajo (los demás).
+	void TickCrouchVisual(float DeltaSeconds);
+	float CrouchVisualAlpha = 0.f;
+	FVector FirstPersonMeshBaseRel = FVector::ZeroVector;
+	FVector BodyBaseScale = FVector::OneVector;
+
 	// --- Interacción (tecla E) y reliquia ---
 
 	/** Distancia máxima para interactuar (cm). */

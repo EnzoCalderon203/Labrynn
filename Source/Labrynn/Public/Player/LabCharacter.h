@@ -95,7 +95,7 @@ protected:
 
 	/** Intensidad de la linterna (unidades del componente). */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
-	float FlashlightIntensity = 5000.f;
+	float FlashlightIntensity = 3000.f;
 
 	/** Alcance de la linterna en cm. */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")

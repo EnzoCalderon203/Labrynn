@@ -5,8 +5,9 @@
 param(
     [int]$Seed = 4242,
     [switch]$NoRender,
+    # El cliente saca su captura y cierra ANTES que el host (si el host cierra primero, el cliente se desconecta).
     [int]$ShotServer = 60,
-    [int]$ShotClient = 40,
+    [int]$ShotClient = 25,
     [int]$ClientDelay = 15,
     [string]$Extra = ''   # parámetros extra para ambos, ej. "-LabExposure=6 -LabFlashlight=8000"
 )
@@ -21,14 +22,14 @@ Remove-Item "$logs\*.log" -ErrorAction SilentlyContinue
 Remove-Item $shots -Recurse -ErrorAction SilentlyContinue
 
 $render = if ($NoRender) { '-nullrhi' } else { '-windowed -ResX=1280 -ResY=720' }
-$common = "-game $render -nosound -unattended -nosplash -log -LabAutoQuit $Extra"
+$common = "-game $render -nosound -unattended -nosplash -log $Extra"
 
-$srv = Start-Process $ue -PassThru -ArgumentList "`"$proj`" /Game/Labrynn/Maps/L_Labrynn?listen?Seed=$Seed $common -WinX=0 -WinY=0 -abslog=`"$logs\server.log`" -LabAutoShot=$ShotServer"
+# Solo el host se cierra solo (-LabAutoQuit); al cliente lo cierra el script cuando termina el host.
+$srv = Start-Process $ue -PassThru -ArgumentList "`"$proj`" /Game/Labrynn/Maps/L_Labrynn?listen?Seed=$Seed $common -LabAutoQuit -WinX=0 -WinY=0 -abslog=`"$logs\server.log`" -LabAutoShot=$ShotServer"
 Start-Sleep -Seconds $ClientDelay
 $cli = Start-Process $ue -PassThru -ArgumentList "`"$proj`" 127.0.0.1 $common -WinX=640 -WinY=360 -abslog=`"$logs\client.log`" -LabAutoShot=$ShotClient"
 
 $srv.WaitForExit(($ShotServer + 120) * 1000) | Out-Null
-$cli.WaitForExit(30000) | Out-Null
 Stop-Process -Id $cli.Id, $srv.Id -Force -ErrorAction SilentlyContinue
 
 Add-Type -AssemblyName System.Drawing

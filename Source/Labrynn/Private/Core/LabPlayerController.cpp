@@ -37,11 +37,14 @@ void ALabPlayerController::BeginPlay()
 #if !UE_BUILD_SHIPPING
 void ALabPlayerController::SetupAutoShot()
 {
+	// Una sola vez por proceso: si el cliente se desconecta y recarga el mapa, no repetir.
+	static bool bAutoShotScheduled = false;
 	float Delay = 0.f;
-	if (!FParse::Value(FCommandLine::Get(), TEXT("LabAutoShot="), Delay) || Delay <= 0.f)
+	if (bAutoShotScheduled || !FParse::Value(FCommandLine::Get(), TEXT("LabAutoShot="), Delay) || Delay <= 0.f)
 	{
 		return;
 	}
+	bAutoShotScheduled = true;
 	GetWorldTimerManager().SetTimer(AutoShotTimer, this, &ALabPlayerController::DoAutoShot, Delay, false);
 	if (FParse::Param(FCommandLine::Get(), TEXT("LabAutoQuit")))
 	{
@@ -72,6 +75,12 @@ void ALabPlayerController::DoAutoShot()
 		{
 			const FVector Dir = Closest->GetActorLocation() - Me->GetActorLocation();
 			SetControlRotation(FRotator(-5.f, Dir.Rotation().Yaw, 0.f));
+			UE_LOG(LogTemp, Log, TEXT("[AutoShot] %s mira a %s (dist %.0f, yaw %.0f)"),
+				*GetNameSafe(Me), *GetNameSafe(Closest), BestDist, Dir.Rotation().Yaw);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AutoShot] %s no encontró a otro jugador"), *GetNameSafe(Me));
 		}
 	}
 	// Esperar un par de frames a que la cámara rote.

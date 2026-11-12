@@ -46,6 +46,10 @@ música adaptativa y arte custom elaborado.
 
 - **Unreal Engine 5.8.4** en `C:\Program Files\Epic Games\UE_5.8`.
 - **VS 2026** con **MSVC 14.50** y Windows SDK 10.0.26100. Rider es el IDE de Enzo.
+- **Smart App Control tiene que estar apagado** en las PCs de desarrollo. Si no, bloquea la DLL del juego recién compilada
+  (`GetLastError=4551`, *"The game module 'Labrynn' could not be loaded"*). Apagarlo **no es irreversible**: desde la
+  actualización de abril de 2026 (KB5083769) se puede volver a activar en Seguridad de Windows sin reinstalar.
+  Claude no cambia esta configuración sin permiso.
 - **La lógica de juego va en C++** (módulo `Labrynn`, en `Source/Labrynn`). Claude no edita `.uasset`.
   Los Blueprints son solo **clases hijas** para asignar meshes, sonidos y valores.
   Cuando haga falta algo en el editor, se dan pasos exactos.

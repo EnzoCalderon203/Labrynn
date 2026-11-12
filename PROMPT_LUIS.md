@@ -41,7 +41,8 @@ Si no coinciden, el proyecto C++ no compila igual en las dos máquinas.
    (0 = apagado, 1 = activado, 2 = evaluación). En la PC de Enzo estaba activado y **bloqueó la DLL del juego**
    (`GetLastError=4551`, *"The game module 'Labrynn' could not be loaded"*). Si está en 1 o 2, explicame el problema
    y guiame para apagarlo en Seguridad de Windows → Control de aplicaciones y navegador. No lo cambies vos:
-   es irreversible y lo decido yo.
+   es configuración del sistema y lo decido yo. (Desde la actualización de abril de 2026, KB5083769, se puede
+   volver a activar en el mismo lugar sin reinstalar Windows.)
 2. **Git + LFS:** `winget install --id Git.Git -e`, después `git lfs install`. Verificá con `git --version` y `git lfs version`.
 3. **.NET 10 SDK**, si no está: `winget install --id Microsoft.DotNet.SDK.10 -e`.
 4. **Visual Studio Community 2026.**

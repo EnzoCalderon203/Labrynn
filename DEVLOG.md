@@ -108,7 +108,23 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 **14:42 · 🔴 BLOQUEO: Smart App Control**
 - Windows empezó a bloquear `UnrealEditor-Labrynn.dll` (`GetLastError=4551`, eventos CodeIntegrity 3033/3077).
   Las primeras cuatro compilaciones sí cargaron. Una recompilación con otro hash también quedó bloqueada.
-- Claude no lo cambió: es configuración del sistema e irreversible. Los pasos están en `PENDIENTES_ENZO.md` (punto 1).
+- Claude no lo cambió porque es configuración del sistema. Los pasos están en `PENDIENTES_ENZO.md` (punto 1).
+- **Corrección posterior (Enzo):** Claude escribió que apagar Smart App Control era irreversible, pero eso es información vieja.
+  Desde la actualización de abril de 2026 (**KB5083769**) se puede volver a activar desde Seguridad de Windows
+  sin reinstalar. Claude lo confirmó en la web y lo corrigió en los docs. Lección: Claude no debe afirmar como hecho
+  algo que puede haber cambiado después de su fecha de corte; tiene que verificarlo.
+
+**14:50 · Smart App Control apagado (Enzo) → Hito 1 verificado ✅**
+- Estado verificado: `VerifiedAndReputablePolicyState = 0`. La DLL carga.
+- **Calibración** (Claude, mirando capturas y midiendo el brillo medio):
+  - Exposición +4 EV con linterna 5000: el compañero a 2 m quedaba "quemado" en blanco.
+  - **Exposición +4,5 EV con linterna 3000**: se ven los detalles del traje y el fondo del pasillo, y las zonas fuera del cono quedan oscuras.
+    Brillo medio ~42/255. Quedó como valor por defecto.
+- Bug del script de prueba (no del juego): host y cliente sacaban la captura en el mismo segundo y el host cerraba primero.
+  El cliente se desconectaba, recargaba el mapa solo y sacaba otra captura que pisaba la buena.
+  Arreglo: una sola captura por proceso, y el script cierra al cliente después de que termina el host.
+- Resultado: `[AutoShot] … mira a BP_FirstPersonCharacter_C_1 (dist 192)` en **ambos** lados. En las capturas,
+  cada uno ve al otro con el cuerpo completo, la linterna y la sombra. **Hito 1 cumplido.**
 
 ---
 

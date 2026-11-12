@@ -15,6 +15,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Interact/LabInteractable.h"
 #include "Interact/LabRelic.h"
+#include "Core/LabGameState.h"
+#include "Maze/LabMaze.h"
 #include "Labrynn.h"
 
 ALabCharacter::ALabCharacter()
@@ -163,6 +165,25 @@ void ALabCharacter::Revive(float HealthAfter)
 	{
 		return;
 	}
+	// Si está en el fondo de un foso, sale a la celda vecina abierta.
+	if (GetActorLocation().Z < -100.f)
+	{
+		const ALabGameState* GS = GetWorld()->GetGameState<ALabGameState>();
+		if (const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr)
+		{
+			const FIntPoint Cell = Maze->WorldToCell(GetActorLocation());
+			static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+			for (const FIntPoint& D : Dirs)
+			{
+				if (Maze->GetLayout().IsValidCell(Cell + D) && !Maze->GetLayout().HasWallBetween(Cell, D))
+				{
+					SetActorLocation(Maze->CellToWorld(Cell + D) + FVector(0.f, 0.f, 110.f), false, nullptr, ETeleportType::TeleportPhysics);
+					break;
+				}
+			}
+		}
+	}
+
 	const ELabLifeState Old = LifeState;
 	LifeState = ELabLifeState::Alive;
 	Health = FMath::Clamp(HealthAfter, 1.f, MaxHealth);
@@ -268,7 +289,7 @@ void ALabCharacter::StopRagdoll()
 void ALabCharacter::TickRevive(float DeltaSeconds)
 {
 	ALabCharacter* R = Reviver.Get();
-	const bool bValid = R && R->IsAliveAndFree() && FVector::Dist(R->GetActorLocation(), GetActorLocation()) <= R->InteractRange + 60.f;
+	const bool bValid = R && R->IsAliveAndFree() && FVector::Dist2D(R->GetActorLocation(), GetActorLocation()) <= R->InteractRange + 160.f;
 	if (!bValid)
 	{
 		Reviver.Reset();
@@ -438,8 +459,11 @@ AActor* ALabCharacter::FindBestInteractable() const
 			continue;
 		}
 		const FVector To = It->GetActorLocation() - Eye;
-		const float Dist = To.Size();
-		if (Dist > InteractRange)
+		// Compañeros caídos: distancia horizontal y más alcance (para sacarlos de un foso desde el borde).
+		const bool bIsBody = It->IsA<ALabCharacter>();
+		const float Dist = bIsBody ? FVector(To.X, To.Y, 0.f).Size() : To.Size();
+		const float Range = bIsBody ? InteractRange + 100.f : InteractRange;
+		if (Dist > Range || (bIsBody && FMath::Abs(To.Z) > 450.f))
 		{
 			continue;
 		}

@@ -108,8 +108,50 @@ void ALabMaze::Build(int32 InSeed)
 	const float H = Layout.Height * CellSize;
 	const float FloorThickness = 20.f;
 
-	// Piso y techo de la grilla: una sola instancia grande cada uno.
-	AddBox(Floors, FVector(W * 0.5f, H * 0.5f, -FloorThickness * 0.5f), FVector(W, H, FloorThickness));
+	// Fosos: callejones sin salida elegidos con la seed (idéntico en todas las máquinas).
+	// Solo en dead-ends: un foso abierto nunca corta el camino a la reliquia.
+	PitCells.Reset();
+	{
+		FRandomStream PitRng(Seed * 7919 + 13);
+		TArray<FIntPoint> Candidates = Layout.FindDeadEnds();
+		Candidates.RemoveAll([this](const FIntPoint& C)
+		{
+			return FMath::Abs(C.X - Layout.Entrance.X) + FMath::Abs(C.Y - Layout.Entrance.Y) <= 2 || C == Layout.Exit;
+		});
+		for (int32 i = Candidates.Num() - 1; i > 0; --i)
+		{
+			Candidates.Swap(i, PitRng.RandRange(0, i));
+		}
+		for (int32 i = 0; i < FMath::Min(PitCount, Candidates.Num()); ++i)
+		{
+			PitCells.Add(Candidates[i]);
+		}
+	}
+
+	// Piso por celda (con huecos en los fosos) y techo en una sola instancia.
+	for (int32 Y = 0; Y < Layout.Height; ++Y)
+	{
+		for (int32 X = 0; X < Layout.Width; ++X)
+		{
+			if (!PitCells.Contains(FIntPoint(X, Y)))
+			{
+				AddBox(Floors, FVector((X + 0.5f) * CellSize, (Y + 0.5f) * CellSize, -FloorThickness * 0.5f),
+					FVector(CellSize + 1.f, CellSize + 1.f, FloorThickness));
+			}
+		}
+	}
+	for (const FIntPoint& P : PitCells)
+	{
+		// Fondo y paredes del foso.
+		const FVector C((P.X + 0.5f) * CellSize, (P.Y + 0.5f) * CellSize, -PitDepth);
+		AddBox(Floors, C - FVector(0, 0, FloorThickness * 0.5f), FVector(CellSize, CellSize, FloorThickness));
+		const float Half = CellSize * 0.5f;
+		const float WallZ = -PitDepth * 0.5f;
+		AddBox(Walls, FVector(C.X - Half, C.Y, WallZ), FVector(WallThickness, CellSize, PitDepth));
+		AddBox(Walls, FVector(C.X + Half, C.Y, WallZ), FVector(WallThickness, CellSize, PitDepth));
+		AddBox(Walls, FVector(C.X, C.Y - Half, WallZ), FVector(CellSize, WallThickness, PitDepth));
+		AddBox(Walls, FVector(C.X, C.Y + Half, WallZ), FVector(CellSize, WallThickness, PitDepth));
+	}
 	AddBox(Ceilings, FVector(W * 0.5f, H * 0.5f, WallHeight + FloorThickness * 0.5f), FVector(W, H, FloorThickness));
 
 	// Paredes horizontales (lado -Y de cada celda, más la fila superior).

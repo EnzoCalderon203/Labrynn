@@ -192,6 +192,21 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Resultado: `C_1 cayó` → el host lo levanta → `C_1 se levantó (salud 50)`. En la captura del caído se ve
   boca abajo con los brazos abiertos. ✅
 
+**15:40 · Trampas 1 y 2 ✅ (pinchos y foso)**
+- `ALabTrapBase`: estado replicado Armed → **Warning** → Firing → Cooldown. El aviso previo es obligatorio en todas las trampas.
+  Sonidos `WarnSound`/`FireSound`/`ResetSound` asignables por Luis en un Blueprint hijo.
+- **Pinchos** (6 por laberinto, en pasillos rectos lejos de la entrada): placa + destello rojo + 0,6 s → los pinchos suben y
+  **lanzan por el aire en ragdoll** (750 cm/s hacia arriba más empujón lateral al azar). Se rearman a los 3 s.
+- **Foso** (3 por laberinto, **solo en callejones sin salida** para que un foso abierto nunca corte el camino a la reliquia):
+  - El laberinto deja el hueco (piso por celda, fondo a 2,6 m) de forma determinista con la seed.
+  - El piso falso tiembla 0,5 s y se abre para siempre. Quien cae queda caído en el fondo.
+  - Un compañero lo levanta **desde el borde**: el alcance para cuerpos caídos se mide en horizontal (+1 m) y al levantarlo
+    sale a la celda vecina.
+- Prueba `-LabAutoTrap` (log del host): `Trampas: 3 fosos, 6 pinchos` → `LabPitTrap_0 activada por C_1` → `C_1 cayó` →
+  `C_1 se levantó` → `LabSpikeTrap_0 activada por C_0` → `C_0 cayó`. ✅
+- **Hito 2 cumplido** (estaba planeado para el viernes a las 22:00): luz compartida, reliquia, rescate, 2 trampas, escape,
+  victoria/derrota y reinicio, todo por red.
+
 ---
 
 ## 📋 RESUMEN PARA ENZO (14:45)

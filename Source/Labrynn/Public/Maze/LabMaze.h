@@ -63,6 +63,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lab|Maze", meta = (ClampMin = 10))
 	float WallThickness = 40.f;
 
+	/** Cantidad de fosos (en callejones sin salida). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lab|Maze|Traps", meta = (ClampMin = 0, ClampMax = 10))
+	int32 PitCount = 3;
+
+	/** Profundidad de los fosos (cm). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lab|Maze|Traps", meta = (ClampMin = 100))
+	float PitDepth = 260.f;
+
+	/** Celdas con foso (se calculan en Build, iguales en todas las máquinas). */
+	const TArray<FIntPoint>& GetPitCells() const { return PitCells; }
+
 	/** Profundidad del hall de entrada (fuera de la grilla) en celdas. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lab|Maze", meta = (ClampMin = 1))
 	int32 EntranceHallDepth = 2;
@@ -134,6 +145,7 @@ private:
 	void AddGuideLight(const FVector& LocalPos, const FLinearColor& Color, float Intensity);
 
 	FLabMazeLayout Layout;
+	TArray<FIntPoint> PitCells;
 	int32 Seed = 0;
 	bool bBuilt = false;
 };

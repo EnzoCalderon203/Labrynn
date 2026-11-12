@@ -167,6 +167,36 @@ TArray<FIntPoint> FLabMazeLayout::FindDeadEnds() const
 	return Out;
 }
 
+bool FLabMazeLayout::HasWallBetween(const FIntPoint& C, const FIntPoint& Dir) const
+{
+	if (Dir.X == 1)  { return HasVWall(C.X + 1, C.Y); }
+	if (Dir.X == -1) { return HasVWall(C.X, C.Y); }
+	if (Dir.Y == 1)  { return HasHWall(C.X, C.Y + 1); }
+	return HasHWall(C.X, C.Y);
+}
+
+TArray<FIntPoint> FLabMazeLayout::FindStraightCorridors() const
+{
+	TArray<FIntPoint> Out;
+	for (int32 Y = 0; Y < Height; ++Y)
+	{
+		for (int32 X = 0; X < Width; ++X)
+		{
+			const FIntPoint C(X, Y);
+			if (IsInCenterRoom(C) || C == Entrance || C == Exit)
+			{
+				continue;
+			}
+			const bool bN = HasHWall(X, Y + 1), bS = HasHWall(X, Y), bE = HasVWall(X + 1, Y), bW = HasVWall(X, Y);
+			if ((bN && bS && !bE && !bW) || (bE && bW && !bN && !bS))
+			{
+				Out.Add(C);
+			}
+		}
+	}
+	return Out;
+}
+
 uint32 FLabMazeLayout::ComputeChecksum() const
 {
 	uint32 Hash = HashCombine(GetTypeHash(Width), GetTypeHash(Height));

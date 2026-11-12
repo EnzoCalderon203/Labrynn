@@ -5,6 +5,8 @@
 #include "Player/LabCharacter.h"
 #include "UI/LabHUD.h"
 #include "Interact/LabRelic.h"
+#include "Traps/LabSpikeTrap.h"
+#include "Traps/LabPitTrap.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "Maze/LabMaze.h"
@@ -63,6 +65,7 @@ void ALabGameMode::StartPlay()
 {
 	Super::StartPlay();
 	SpawnRelic();
+	SpawnTraps();
 	GetWorldTimerManager().SetTimer(CheckTimer, this, &ALabGameMode::CheckWinLose, 0.25f, true);
 
 #if !UE_BUILD_SHIPPING
@@ -92,6 +95,66 @@ void ALabGameMode::StartPlay()
 				Ch->SetActorLocation(GS->GetMaze()->CellToWorld(FIntPoint(L.Exit.X, L.Height)) + FVector(0.f, 0.f, 100.f));
 			}
 		}), 26.f, false);
+	}
+
+	// Prueba automática de trampas: el cliente cae a un foso, el host lo saca desde el borde,
+	// y después el host pisa unos pinchos.
+	static bool bAutoTrapDone = false;
+	if (!bAutoTrapDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoTrap")))
+	{
+		bAutoTrapDone = true;
+		auto FindPawns = [this](ALabCharacter*& Host, ALabCharacter*& Other)
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			Host = PC ? Cast<ALabCharacter>(PC->GetPawn()) : nullptr;
+			Other = nullptr;
+			for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+			{
+				if (*It != Host) { Other = *It; }
+			}
+		};
+		FTimerHandle T1, T2, T3;
+		GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [this, FindPawns]()
+		{
+			ALabCharacter *Host, *Other; FindPawns(Host, Other);
+			const ALabMaze* Maze = GetGameState<ALabGameState>()->GetMaze();
+			if (Other && Maze->GetPitCells().Num() > 0)
+			{
+				Other->SetActorLocation(Maze->CellToWorld(Maze->GetPitCells()[0]) + FVector(0.f, 0.f, 120.f), false, nullptr, ETeleportType::TeleportPhysics);
+			}
+		}), 18.f, false);
+		GetWorldTimerManager().SetTimer(T2, FTimerDelegate::CreateWeakLambda(this, [this, FindPawns]()
+		{
+			ALabCharacter *Host, *Other; FindPawns(Host, Other);
+			const ALabMaze* Maze = GetGameState<ALabGameState>()->GetMaze();
+			if (Host && Other && Maze->GetPitCells().Num() > 0)
+			{
+				// Al borde: la celda vecina abierta del callejón.
+				const FIntPoint Pit = Maze->GetPitCells()[0];
+				static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+				for (const FIntPoint& D : Dirs)
+				{
+					if (!Maze->GetLayout().HasWallBetween(Pit, D))
+					{
+						Host->SetActorLocation(Maze->CellToWorld(Pit + D) + FVector(0.f, 0.f, 110.f));
+						break;
+					}
+				}
+				Other->Interact(Host);
+			}
+		}), 23.f, false);
+		GetWorldTimerManager().SetTimer(T3, FTimerDelegate::CreateWeakLambda(this, [this, FindPawns]()
+		{
+			ALabCharacter *Host, *Other; FindPawns(Host, Other);
+			for (ALabTrapBase* Trap : Traps)
+			{
+				if (Host && Trap && Trap->IsA<ALabSpikeTrap>())
+				{
+					Host->SetActorLocation(Trap->GetActorLocation() + FVector(0.f, 0.f, 110.f), false, nullptr, ETeleportType::TeleportPhysics);
+					break;
+				}
+			}
+		}), 30.f, false);
 	}
 
 	// Prueba automática del rescate: tira al jugador 2 (cliente) y el host lo levanta.
@@ -137,6 +200,57 @@ void ALabGameMode::SpawnRelic()
 	const FVector Loc = Maze->GetCenterRoomLocation() + FVector(0.f, 0.f, 40.f);
 	Relic = GetWorld()->SpawnActor<ALabRelic>(RelicClass ? *RelicClass : ALabRelic::StaticClass(), FTransform(Loc), P);
 	UE_LOG(LogLabrynn, Log, TEXT("Reliquia spawneada en %s"), *Loc.ToCompactString());
+}
+
+void ALabGameMode::SpawnTraps()
+{
+	const ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	const FLabMazeLayout& L = Maze->GetLayout();
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	// Fosos: en las celdas que el laberinto ya dejó con hueco (deterministas por seed).
+	for (const FIntPoint& Cell : Maze->GetPitCells())
+	{
+		ALabPitTrap* Pit = GetWorld()->SpawnActorDeferred<ALabPitTrap>(PitTrapClass ? *PitTrapClass : ALabPitTrap::StaticClass(),
+			FTransform(Maze->CellToWorld(Cell)), this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (Pit)
+		{
+			Pit->CellSize = Maze->CellSize;
+			Pit->PitDepth = Maze->PitDepth;
+			Pit->FinishSpawning(FTransform(Maze->CellToWorld(Cell)));
+			Traps.Add(Pit);
+		}
+	}
+
+	// Pinchos: en pasillos rectos, lejos de la entrada.
+	FRandomStream Rng(GS->GetMazeSeed() * 31 + 7);
+	TArray<FIntPoint> Cells = L.FindStraightCorridors();
+	Cells.RemoveAll([&L](const FIntPoint& C)
+	{
+		return FMath::Abs(C.X - L.Entrance.X) + FMath::Abs(C.Y - L.Entrance.Y) <= 3;
+	});
+	for (int32 i = Cells.Num() - 1; i > 0; --i)
+	{
+		Cells.Swap(i, Rng.RandRange(0, i));
+	}
+	for (int32 i = 0; i < FMath::Min(SpikeTrapCount, Cells.Num()); ++i)
+	{
+		ALabSpikeTrap* Spike = GetWorld()->SpawnActorDeferred<ALabSpikeTrap>(SpikeTrapClass ? *SpikeTrapClass : ALabSpikeTrap::StaticClass(),
+			FTransform(Maze->CellToWorld(Cells[i])), this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (Spike)
+		{
+			Spike->CellSize = Maze->CellSize;
+			Spike->FinishSpawning(FTransform(Maze->CellToWorld(Cells[i])));
+			Traps.Add(Spike);
+		}
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Trampas: %d fosos, %d pinchos"), Maze->GetPitCells().Num(), FMath::Min(SpikeTrapCount, Cells.Num()));
 }
 
 void ALabGameMode::CheckWinLose()

@@ -26,6 +26,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Relic")
 	TSubclassOf<class ALabRelic> RelicClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps")
+	TSubclassOf<class ALabSpikeTrap> SpikeTrapClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps")
+	TSubclassOf<class ALabPitTrap> PitTrapClass;
+
+	/** Cantidad de trampas de pinchos (en pasillos rectos). La de fosos está en ALabMaze::PitCount. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps", meta = (ClampMin = 0, ClampMax = 20))
+	int32 SpikeTrapCount = 6;
+
 	/** Segundos entre la victoria/derrota y el reinicio con un laberinto nuevo. */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Game")
 	float RestartDelay = 10.f;
@@ -47,6 +57,10 @@ public:
 private:
 	void CheckWinLose();
 	void SpawnRelic();
+	void SpawnTraps();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class ALabTrapBase>> Traps;
 
 	UPROPERTY(Transient)
 	TObjectPtr<class ALabRelic> Relic;

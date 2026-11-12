@@ -81,6 +81,12 @@ struct LABRYNN_API FLabMazeLayout
 	/** Celdas sin salida (exactamente 3 paredes), fuera de la sala central. Útil para trampas e items. */
 	TArray<FIntPoint> FindDeadEnds() const;
 
+	/** Pasillos rectos (2 paredes opuestas), fuera de la sala central. Para trampas de pinchos. */
+	TArray<FIntPoint> FindStraightCorridors() const;
+
+	/** ¿Hay pared entre la celda C y su vecina en dirección Dir (±1,0 / 0,±1)? */
+	bool HasWallBetween(const FIntPoint& C, const FIntPoint& Dir) const;
+
 	/** Hash simple del layout, para verificar que cliente y servidor generaron lo mismo. */
 	uint32 ComputeChecksum() const;
 

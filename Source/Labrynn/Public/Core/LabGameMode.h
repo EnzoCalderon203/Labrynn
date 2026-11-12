@@ -26,6 +26,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Relic")
 	TSubclassOf<class ALabRelic> RelicClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Relic")
+	TSubclassOf<class ALabHeart> HeartClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups")
+	TSubclassOf<class ALabBatteryPickup> BatteryClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups", meta = (ClampMin = 0, ClampMax = 20))
+	int32 BatteryCount = 6;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps")
 	TSubclassOf<class ALabSpikeTrap> SpikeTrapClass;
 
@@ -58,6 +67,10 @@ private:
 	void CheckWinLose();
 	void SpawnRelic();
 	void SpawnTraps();
+	void SpawnPickups();
+
+	UPROPERTY(Transient)
+	TObjectPtr<class ALabHeart> Heart;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<class ALabTrapBase>> Traps;

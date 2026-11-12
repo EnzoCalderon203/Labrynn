@@ -207,6 +207,14 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - **Hito 2 cumplido** (estaba planeado para el viernes a las 22:00): luz compartida, reliquia, rescate, 2 trampas, escape,
   victoria/derrota y reinicio, todo por red.
 
+**15:33 · Corazón del Laberinto y baterías ✅** (adelanto del sábado)
+- `ALabHeart` en la sala central, al lado de la reliquia. Late (doble pulso rojo). **Un solo uso**: revive a todos los caídos y muertos
+  (salud 100, y los saca de los fosos) y recarga todas las linternas. Al usarlo queda como una brasa apagada.
+- `ALabBatteryPickup` ×6 en callejones sin salida que no tienen foso: brillo verde tenue para encontrarlas, **+50 %** de batería.
+  Solo las agarra quien tiene linterna. Sonidos asignables por Luis.
+- Prueba `-LabAutoHeart`: `C_1 cayó` → `Corazón usado por C_0: 1 revivido(s), linternas recargadas` → `C_1 se levantó (salud 100)`.
+  En la captura se ve el Corazón latiendo en la sala central. ✅
+
 ---
 
 ## 📋 RESUMEN PARA ENZO (14:45)

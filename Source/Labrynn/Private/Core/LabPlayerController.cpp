@@ -69,7 +69,7 @@ void ALabPlayerController::DoAutoShot()
 {
 	// Mirar al compañero más cercano para verificar que se ve su cuerpo completo.
 	APawn* Me = GetPawn();
-	if (Me)
+	if (Me && !FParse::Param(FCommandLine::Get(), TEXT("LabShotNoAim")))
 	{
 		APawn* Closest = nullptr;
 		float BestDist = TNumericLimits<float>::Max();

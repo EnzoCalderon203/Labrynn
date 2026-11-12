@@ -5,6 +5,8 @@
 #include "Player/LabCharacter.h"
 #include "UI/LabHUD.h"
 #include "Interact/LabRelic.h"
+#include "Interact/LabHeart.h"
+#include "Interact/LabBatteryPickup.h"
 #include "Traps/LabSpikeTrap.h"
 #include "Traps/LabPitTrap.h"
 #include "TimerManager.h"
@@ -66,6 +68,7 @@ void ALabGameMode::StartPlay()
 	Super::StartPlay();
 	SpawnRelic();
 	SpawnTraps();
+	SpawnPickups();
 	GetWorldTimerManager().SetTimer(CheckTimer, this, &ALabGameMode::CheckWinLose, 0.25f, true);
 
 #if !UE_BUILD_SHIPPING
@@ -157,6 +160,40 @@ void ALabGameMode::StartPlay()
 		}), 30.f, false);
 	}
 
+	// Prueba automática del Corazón: tira al cliente, el host va al Corazón y lo usa.
+	static bool bAutoHeartDone = false;
+	if (!bAutoHeartDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoHeart")))
+	{
+		bAutoHeartDone = true;
+		FTimerHandle T1, T2, T3;
+		GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+			{
+				if (PC && *It != PC->GetPawn()) { It->KnockDown(FVector(0.f, 0.f, 300.f)); }
+			}
+		}), 18.f, false);
+		GetWorldTimerManager().SetTimer(T2, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			if (PC && PC->GetPawn() && Heart)
+			{
+				const FVector Pos = Heart->GetActorLocation() + FVector(-170.f, -60.f, 60.f);
+				PC->GetPawn()->SetActorLocation(Pos);
+				PC->SetControlRotation(FRotator(-12.f, (Heart->GetActorLocation() - Pos).Rotation().Yaw - 25.f, 0.f));
+			}
+		}), 20.f, false);
+		GetWorldTimerManager().SetTimer(T3, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			if (ALabCharacter* Host = PC ? Cast<ALabCharacter>(PC->GetPawn()) : nullptr)
+			{
+				if (Heart) { Heart->Interact(Host); }
+			}
+		}), 24.f, false);
+	}
+
 	// Prueba automática del rescate: tira al jugador 2 (cliente) y el host lo levanta.
 	static bool bAutoDownDone = false;
 	if (!bAutoDownDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoDown")))
@@ -200,6 +237,37 @@ void ALabGameMode::SpawnRelic()
 	const FVector Loc = Maze->GetCenterRoomLocation() + FVector(0.f, 0.f, 40.f);
 	Relic = GetWorld()->SpawnActor<ALabRelic>(RelicClass ? *RelicClass : ALabRelic::StaticClass(), FTransform(Loc), P);
 	UE_LOG(LogLabrynn, Log, TEXT("Reliquia spawneada en %s"), *Loc.ToCompactString());
+
+	// Corazón del Laberinto: al lado de la reliquia.
+	const FVector HeartLoc = Maze->GetCenterRoomLocation() + FVector(Maze->CellSize * 0.9f, 0.f, 45.f);
+	Heart = GetWorld()->SpawnActor<ALabHeart>(HeartClass ? *HeartClass : ALabHeart::StaticClass(), FTransform(HeartLoc), P);
+}
+
+void ALabGameMode::SpawnPickups()
+{
+	const ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	// Baterías en callejones sin salida sin foso (vale la pena explorarlos... con cuidado).
+	FRandomStream Rng(GS->GetMazeSeed() * 131 + 3);
+	TArray<FIntPoint> Cells = Maze->GetLayout().FindDeadEnds();
+	Cells.RemoveAll([Maze](const FIntPoint& C) { return Maze->GetPitCells().Contains(C); });
+	for (int32 i = Cells.Num() - 1; i > 0; --i)
+	{
+		Cells.Swap(i, Rng.RandRange(0, i));
+	}
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	const int32 N = FMath::Min(BatteryCount, Cells.Num());
+	for (int32 i = 0; i < N; ++i)
+	{
+		GetWorld()->SpawnActor<ALabBatteryPickup>(BatteryClass ? *BatteryClass : ALabBatteryPickup::StaticClass(),
+			FTransform(Maze->CellToWorld(Cells[i]) + FVector(0.f, 0.f, 15.f)), P);
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Baterías: %d"), N);
 }
 
 void ALabGameMode::SpawnTraps()

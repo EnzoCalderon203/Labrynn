@@ -325,6 +325,15 @@ private:
 	float NextBreathNoise = 0.f;
 	float NextSprintNoise = 0.f;
 
+	// Ojos (solo jugador local): adaptación lenta a la oscuridad y encandilamiento breve.
+	void TickEyes(float DeltaSeconds);
+	float DarkAdapt = 0.f;      // 0 = ojos de luz, 1 = totalmente adaptados a la oscuridad
+	float GlareTime = 0.f;      // segundos de encandilamiento restantes
+	float GlareStrength = 0.f;
+	bool bWasGlaring = false;
+	bool bGlowFromSettings = false;
+	float NextEyeLog = 0.f;
+
 public:
 	/** Solo servidor. Corriente de aire: apaga el farol que lleva y no deja reencenderlo durante Seconds. */
 	void ApplyGas(float Seconds);

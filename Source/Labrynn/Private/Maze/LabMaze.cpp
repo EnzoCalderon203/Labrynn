@@ -3,6 +3,10 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/PostProcessComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Maze/LabVisualSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
@@ -40,6 +44,21 @@ ALabMaze::ALabMaze()
 	PostProcess->bUnbound = true;
 	PostProcess->Priority = -1.f; // un volumen del mapa (Luis) puede pisarlo
 
+	Moss = MakeISM(this, Root, TEXT("Moss"));
+	Moss->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Moss->CastShadow = false;
+	Cracks = MakeISM(this, Root, TEXT("Cracks"));
+	Cracks->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Cracks->CastShadow = false;
+
+	Fog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("Fog"));
+	Fog->SetupAttachment(Root);
+
+	static ConstructorHelpers::FObjectFinder<ULabVisualSettings> VisDA(TEXT("/Game/Labrynn/Core/DA_Visuals.DA_Visuals"));
+	VisualSettings = VisDA.Object;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> GlowMat(TEXT("/Game/Labrynn/Core/Materials/M_Glow.M_Glow"));
+	GlowMaterial = GlowMat.Object;
+
 	Walls = MakeISM(this, Root, TEXT("Walls"));
 	Floors = MakeISM(this, Root, TEXT("Floors"));
 	Ceilings = MakeISM(this, Root, TEXT("Ceilings"));
@@ -68,7 +87,7 @@ ALabMaze::ALabMaze()
 	if (CeilGrid.Succeeded())  { CeilingMaterial = CeilGrid.Object; }
 
 	// Mesh y materiales por defecto ya en el constructor (componentes Static).
-	for (UInstancedStaticMeshComponent* C : { Walls.Get(), Floors.Get(), Ceilings.Get(), ExitDoor.Get() })
+	for (UInstancedStaticMeshComponent* C : { Walls.Get(), Floors.Get(), Ceilings.Get(), ExitDoor.Get(), Moss.Get(), Cracks.Get() })
 	{
 		C->SetStaticMesh(BlockMesh);
 	}
@@ -194,6 +213,8 @@ void ALabMaze::Build(int32 InSeed)
 	}
 
 	BuildEntranceHall();
+
+	BuildAmbience();
 
 	// Luces tenues: hall de entrada (para orientarse al empezar) y sala central (brillo de la reliquia).
 	AddGuideLight(FVector((Layout.Entrance.X + 0.5f) * CellSize, -EntranceHallDepth * CellSize * 0.5f, WallHeight - 60.f),
@@ -322,6 +343,98 @@ void ALabMaze::SetExitOpen(bool bOpen)
 	{
 		ExitBeacon->SetVisibility(bOpen);
 	}
+}
+
+const ULabVisualSettings* ALabMaze::GetVisualSettings() const
+{
+	return VisualSettings ? VisualSettings.Get() : GetDefault<ULabVisualSettings>();
+}
+
+void ALabMaze::BuildAmbience()
+{
+	const ULabVisualSettings* V = GetVisualSettings();
+	FRandomStream Rng(Seed * 977 + 41); // determinista: igual en todas las máquinas
+
+	// Materiales emisivos (instancias dinámicas de M_Glow).
+	if (GlowMaterial)
+	{
+		UMaterialInstanceDynamic* MossMID = UMaterialInstanceDynamic::Create(GlowMaterial, this);
+		MossMID->SetVectorParameterValue(TEXT("EmissiveColor"), V->MossEmissive);
+		Moss->SetMaterial(0, MossMID);
+		UMaterialInstanceDynamic* CrackMID = UMaterialInstanceDynamic::Create(GlowMaterial, this);
+		CrackMID->SetVectorParameterValue(TEXT("EmissiveColor"), V->CrackEmissive);
+		Cracks->SetMaterial(0, CrackMID);
+	}
+
+	// Celdas candidatas (fuera de la sala central y sin foso), mezcladas con la seed.
+	TArray<FIntPoint> Cells;
+	for (int32 Y = 0; Y < Layout.Height; ++Y)
+	{
+		for (int32 X = 0; X < Layout.Width; ++X)
+		{
+			const FIntPoint C(X, Y);
+			if (!Layout.IsInCenterRoom(C) && !PitCells.Contains(C))
+			{
+				Cells.Add(C);
+			}
+		}
+	}
+	for (int32 i = Cells.Num() - 1; i > 0; --i)
+	{
+		Cells.Swap(i, Rng.RandRange(0, i));
+	}
+
+	// Musgo: tiras finas al pie de las paredes de algunas celdas.
+	static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+	const int32 NumMoss = FMath::Min(V->MossCellCount, Cells.Num());
+	const float Inset = WallThickness * 0.5f + 3.f;
+	for (int32 i = 0; i < NumMoss; ++i)
+	{
+		const FIntPoint C = Cells[i];
+		const FVector Center((C.X + 0.5f) * CellSize, (C.Y + 0.5f) * CellSize, 5.f);
+		for (const FIntPoint& D : Dirs)
+		{
+			if (Layout.HasWallBetween(C, D) && Rng.FRand() < 0.6f)
+			{
+				const FVector Off(D.X * (CellSize * 0.5f - Inset), D.Y * (CellSize * 0.5f - Inset), 0.f);
+				const FVector Size = D.X != 0 ? FVector(6.f, CellSize * Rng.FRandRange(0.4f, 0.85f), 10.f) : FVector(CellSize * Rng.FRandRange(0.4f, 0.85f), 6.f, 10.f);
+				AddBox(Moss, Center + Off, Size);
+			}
+		}
+	}
+
+	// Luna: grietas en el techo de algunas celdas, cada una con un haz frío hacia abajo.
+	const int32 NumMoon = FMath::Min(V->MoonBeamCount, Cells.Num() - NumMoss);
+	for (int32 i = 0; i < NumMoon; ++i)
+	{
+		const FIntPoint C = Cells[NumMoss + i];
+		const FVector Top((C.X + 0.5f) * CellSize + Rng.FRandRange(-60.f, 60.f), (C.Y + 0.5f) * CellSize + Rng.FRandRange(-60.f, 60.f), WallHeight);
+		AddBox(Cracks, Top, FVector(Rng.FRandRange(40.f, 90.f), Rng.FRandRange(6.f, 14.f), 4.f));
+
+		USpotLightComponent* Beam = NewObject<USpotLightComponent>(this);
+		Beam->SetupAttachment(Root);
+		Beam->SetMobility(EComponentMobility::Movable);
+		Beam->SetRelativeLocationAndRotation(Top - FVector(0.f, 0.f, 4.f), FRotator(-90.f, 0.f, 0.f));
+		Beam->SetLightColor(V->MoonColor);
+		Beam->SetIntensity(V->MoonIntensity);
+		Beam->SetAttenuationRadius(WallHeight + 150.f);
+		Beam->SetInnerConeAngle(V->MoonConeAngle * 0.4f);
+		Beam->SetOuterConeAngle(V->MoonConeAngle);
+		Beam->SetCastShadows(false);
+		Beam->SetVolumetricScatteringIntensity(V->MoonVolumetricScattering);
+		Beam->RegisterComponent();
+		AddInstanceComponent(Beam);
+	}
+
+	// Niebla tenue: hace visibles los haces de luna (y el halo del farol).
+	Fog->SetFogDensity(V->FogDensity);
+	Fog->SetFogHeightFalloff(0.2f);
+	Fog->SetFogInscatteringColor(FLinearColor(0.01f, 0.012f, 0.015f));
+	Fog->SetVolumetricFog(V->bVolumetricFog);
+	Fog->SetVolumetricFogScatteringDistribution(0.6f);
+	Fog->SetVolumetricFogExtinctionScale(0.6f);
+
+	UE_LOG(LogLabrynn, Log, TEXT("Ambiente: musgo en %d celdas (%d tiras), %d haces de luna"), NumMoss, Moss->GetInstanceCount(), NumMoon);
 }
 
 FVector ALabMaze::TableLocalCenter() const

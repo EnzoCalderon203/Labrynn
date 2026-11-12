@@ -322,6 +322,20 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - Con render: 0 crashes de GPU.
 - ⚠️ **Balance a mirar en el playtest:** quien carga la reliquia va a 248 cm/s, así que si el Minotauro lo oye, lo alcanza. Es la tensión buscada
   (protegerlo, distraer al Minotauro o soltar la reliquia y correr), pero puede resultar demasiado. Todo se ajusta en el BP o el DA sin compilar.
+**18:46 · Diseño v2, punto 1: Visibilidad mínima sin farol ✅**
+- **`DA_Visuals`** (`ULabVisualSettings`, creado con `setup_project.py`): todos los valores se ajustan sin compilar.
+- **Rayos de luna:** 9 grietas en el techo (emisivo celeste) con un spot frío y tenue hacia abajo, elegidas con la seed (iguales en todas las máquinas),
+  más **niebla volumétrica** leve para que el haz se vea.
+- **Musgo:** tiras emisivas verdes al pie de las paredes en 110 celdas (`M_Glow`, material creado con `Scripts/create_materials.py`;
+  provisorio para reemplazar por el kit medieval).
+- **Adaptación ocular** (solo cámara local): lejos de un farol encendido, la exposición sube **despacio** (de 4,0 a 6,8 EV en 10 s); cerca de la luz se pierde rápido.
+  **Encandilamiento**: al mirar un farol de frente y a menos de 2,3 m, salto de exposición y bloom durante 1,2 s, más fuerte cuanto más adaptados estaban los ojos.
+- **Silueta de compañeros:** brillo personal tenue (14, radio 3,2 m) desde el DA.
+- Prueba en LAN (logs, `-LabEyeLog`, **W real**): al alejarse del farol la adaptación sube 0 → 1 en 10 s (exposición 4,0 → 5,4 con el valor inicial).
+  Frente al farol: `encandilado (fuerza 1.00)` → la exposición salta a 6,8 y vuelve a 4,0. El cliente construye el mismo ambiente
+  (`musgo en 40 celdas, 9 haces`). ✅
+- Calibración (dos capturas, imprescindibles para juzgar la oscuridad): con +1,4 EV de adaptación el pasillo quedaba **negro**. Con **+2,8 EV**,
+  110 celdas de musgo y brillo personal de 3,2 m se distinguen la pared cercana y la forma del pasillo, pero no los detalles. Ese quedó como valor por defecto.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

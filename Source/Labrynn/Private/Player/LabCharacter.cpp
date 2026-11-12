@@ -26,6 +26,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "InputAction.h"
 #include "Net/VoiceConfig.h"
+#include "Maze/LabVisualSettings.h"
 #include "Sound/SoundAttenuation.h"
 #include "Labrynn.h"
 
@@ -119,6 +120,81 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, DownImpulse);
 	DOREPLIFETIME(ALabCharacter, GasUntilServerTime);
 	DOREPLIFETIME(ALabCharacter, bTalking);
+}
+
+// ---------------------------------------------------------------- Ojos
+
+void ALabCharacter::TickEyes(float DeltaSeconds)
+{
+	const ALabGameState* GS = GetWorld()->GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	const ULabVisualSettings* V = Maze->GetVisualSettings();
+
+	// Silueta tenue (todas las máquinas): brillo personal desde DA_Visuals.
+	if (!bGlowFromSettings)
+	{
+		bGlowFromSettings = true;
+		PersonalGlow->SetIntensity(V->PersonalGlowIntensity);
+		PersonalGlow->SetAttenuationRadius(V->PersonalGlowRadius);
+	}
+
+	if (!IsLocallyControlled() || !FirstPersonCameraComponent)
+	{
+		return;
+	}
+
+	// ¿Hay un farol encendido cerca? ¿Estoy mirando uno de frente y de cerca?
+	const FVector Eye = FirstPersonCameraComponent->GetComponentLocation();
+	const FVector View = GetControlRotation().Vector();
+	bool bNearLight = false;
+	bool bGlaring = false;
+	for (TActorIterator<ALabLantern> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsLit())
+		{
+			continue;
+		}
+		const FVector To = It->GetActorLocation() - Eye;
+		const float D = To.Size();
+		bNearLight |= D < V->LanternNearRadius;
+		bGlaring |= D < V->GlareDistance && FVector::DotProduct(View, To / FMath::Max(D, 1.f)) > V->GlareDot;
+	}
+
+	// Adaptación: sube lento en la oscuridad, se pierde rápido con luz.
+	DarkAdapt = bNearLight
+		? FMath::Max(0.f, DarkAdapt - V->LightAdaptSpeed * DeltaSeconds)
+		: FMath::Min(1.f, DarkAdapt + DeltaSeconds / V->DarkAdaptSeconds);
+
+	// Encandilamiento: al empezar a mirar el farol; más fuerte cuanto más adaptados estaban los ojos.
+	if (bGlaring && !bWasGlaring)
+	{
+		GlareStrength = 0.35f + 0.65f * DarkAdapt;
+		GlareTime = V->GlareSeconds;
+		UE_LOG(LogLabrynn, Log, TEXT("Ojos: encandilado (fuerza %.2f, adaptación previa %.2f)"), GlareStrength, DarkAdapt);
+	}
+	bWasGlaring = bGlaring;
+	GlareTime = FMath::Max(0.f, GlareTime - DeltaSeconds);
+	const float Glare = V->GlareSeconds > 0.f ? GlareStrength * (GlareTime / V->GlareSeconds) : 0.f;
+
+	FPostProcessSettings& PP = FirstPersonCameraComponent->PostProcessSettings;
+	FirstPersonCameraComponent->PostProcessBlendWeight = 1.f;
+	PP.bOverride_AutoExposureBias = true;
+	PP.AutoExposureBias = V->BaseExposureBias + DarkAdapt * V->DarkAdaptExtraBias + Glare * V->GlareExtraBias;
+	PP.bOverride_BloomIntensity = true;
+	PP.BloomIntensity = 0.675f + Glare * V->GlareBloom;
+
+#if !UE_BUILD_SHIPPING
+	if (FParse::Param(FCommandLine::Get(), TEXT("LabEyeLog")) && GetWorld()->GetTimeSeconds() >= NextEyeLog)
+	{
+		NextEyeLog = GetWorld()->GetTimeSeconds() + 1.f;
+		UE_LOG(LogLabrynn, Log, TEXT("Ojos: adaptación=%.2f luzCerca=%d exposición=%.2f encandilamiento=%.2f"),
+			DarkAdapt, bNearLight ? 1 : 0, PP.AutoExposureBias, Glare);
+	}
+#endif
 }
 
 // ---------------------------------------------------------------- Voz por proximidad
@@ -639,6 +715,7 @@ void ALabCharacter::Tick(float DeltaSeconds)
 
 	TickStamina(DeltaSeconds);
 	TickVoice(DeltaSeconds);
+	TickEyes(DeltaSeconds);
 
 	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
 	if (HasAuthority() && LifeState == ELabLifeState::Downed)

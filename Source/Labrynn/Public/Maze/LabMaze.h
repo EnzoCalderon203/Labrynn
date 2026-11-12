@@ -138,6 +138,27 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
 	TObjectPtr<class UPostProcessComponent> PostProcess;
 
+	/** Musgo apenas luminoso (tiras en la base de algunas paredes). */
+	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
+	TObjectPtr<UInstancedStaticMeshComponent> Moss;
+
+	/** Grietas del techo por donde entra la luna. */
+	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
+	TObjectPtr<UInstancedStaticMeshComponent> Cracks;
+
+	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
+	TObjectPtr<class UExponentialHeightFogComponent> Fog;
+
+public:
+	/** Valores de visibilidad sin farol (DA_Visuals). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze|Art")
+	TObjectPtr<class ULabVisualSettings> VisualSettings;
+
+	const ULabVisualSettings* GetVisualSettings() const;
+
+protected:
+	void BuildAmbience();
+
 	/** Pared de la salida, separada para poder quitarla. */
 	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
 	TObjectPtr<UInstancedStaticMeshComponent> ExitDoor;
@@ -152,6 +173,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<class UPointLightComponent> ExitBeacon;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> GlowMaterial;
 	void AddGuideLight(const FVector& LocalPos, const FLinearColor& Color, float Intensity);
 
 	FLabMazeLayout Layout;

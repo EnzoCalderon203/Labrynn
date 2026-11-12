@@ -126,6 +126,37 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Resultado: `[AutoShot] … mira a BP_FirstPersonCharacter_C_1 (dist 192)` en **ambos** lados. En las capturas,
   cada uno ve al otro con el cuerpo completo, la linterna y la sombra. **Hito 1 cumplido.**
 
+**15:00 · Online por internet: Steam con AppID 480 ✅ (verificado hasta donde se puede con una sola PC)**
+- `ULabSessionSubsystem` (GameInstanceSubsystem): Crear, Buscar, Unirse, Unirse por IP e invitaciones del overlay de Steam.
+  - Como el AppID 480 lo comparten miles de juegos, se filtra por la clave `LABRYNN_BUILD=labrynn-jam26-v1`.
+  - Si Steam no está o falla (`-nosteam`, Steam cerrado, segunda instancia en la misma PC), el motor cae solo a
+    **OnlineSubsystem NULL (LAN)** con `IpNetDriver`. El código no cambia.
+- Menú en **Slate C++** (sin assets) en el nuevo mapa `L_Menu`, que es el `GameDefaultMap`. Luis puede reemplazarlo por un UMG.
+- Pruebas automáticas (Claude):
+  - **LAN (`-nosteam`):** flujo completo menú → Crear partida → otra instancia Busca → encuentra 1 → se une →
+    mismo checksum del laberinto. ✅
+  - **Steam real (host):** `Client API initialized`, `AuthStatus OK`, lobby creado (`Type: Lobby session`, `SteamP2P`),
+    relays SDR OK (Buenos Aires a 30 ms) y `SteamSocketsNetDriver … listening on 7777`. ✅
+  - **Steam (cliente) no se puede probar en una sola PC.** Una segunda instancia con la misma cuenta falla
+    (*"Steam server and client running on the same machine"*) y pasa a LAN. Hace falta la prueba Enzo ↔ Luis.
+- Para la build empaquetada: se agregó `bRelaunchInSteam=false`. Sin eso, la build Shipping se relanzaría a través de Steam
+  como "Spacewar" (AppID 480). Al empaquetar hay que poner `steam_appid.txt` con `480` junto al exe (queda en PLAN.md, domingo).
+- Riesgo: la entrega con AppID 480 obliga a los jurados a tener Steam abierto para jugar online. Hay fallback por LAN/IP.
+
+**15:25 · Luz compartida ✅** (adelanto del viernes)
+- **Decisión de diseño:** solo **1 de cada 2 jugadores** empieza con linterna (`FlashlightEveryN=2`). Con 2 jugadores
+  hay una sola linterna, así que el grupo tiene que moverse junto. Todos tienen un **brillo personal** muy tenue (radio 2,2 m)
+  para ver la silueta de los compañeros cercanos, pero no alcanza para explorar.
+- Batería de **240 s** con la linterna prendida, controlada por el servidor y replicada como byte a todos. Por debajo del 25 %
+  pierde intensidad y **parpadea** (cosmético y local); al llegar a 0 se apaga y no se puede prender. `AddBattery()` queda listo
+  para los pickups del sábado.
+- HUD mínimo (Canvas, provisional para Luis): `LINTERNA [F] NN%` con barra, o "SIN LINTERNA – quedate cerca del grupo".
+- **Esc** sale de la partida y vuelve al menú (destruye la sesión).
+- Verificado con 2 instancias y batería acelerada (`-LabBatterySeconds=70`): el host tiene linterna y el cliente no;
+  el cliente ve la batería del host bajar (20 %) y el HUD del host se pone rojo al 14 %. ✅
+- Aprendizaje: con Steam activo, el host escucha por **SteamSockets** y no por IP. Para "Unirse por IP", el host tiene que abrir
+  el juego con `-nosteam`. Las pruebas locales de `nettest.ps1` ahora usan siempre `-nosteam`.
+
 ---
 
 ## 📋 RESUMEN PARA ENZO (14:45)

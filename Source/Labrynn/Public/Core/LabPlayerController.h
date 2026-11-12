@@ -24,6 +24,10 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 
+	/** Sale de la sesión y vuelve al menú (tecla Esc). */
+	UFUNCTION(BlueprintCallable, Category = "Lab|Online")
+	void ReturnToMenu();
+
 	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
 	TArray<TObjectPtr<UInputMappingContext>> DefaultMappingContexts;
 

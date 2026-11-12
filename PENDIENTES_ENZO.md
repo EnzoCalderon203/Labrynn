@@ -31,6 +31,19 @@ Enzo lo desactivó y la DLL carga (estado verificado: `VerifiedAndReputablePolic
    - **Oscuridad:** `ExposureBias` (ahora +4,5). También se puede probar desde la línea de comandos con `-LabExposure=5`.
    - **Linterna:** `FlashlightIntensity` (ahora 3000), o `-LabFlashlight=4000`.
 
+## 2b. 🟠 Prueba online REAL por Steam (Enzo ↔ Luis). Necesita dos PCs y dos cuentas de Steam
+Claude solo pudo probar el lado del host: con una sola cuenta, la segunda instancia no puede usar Steam.
+1. Los dos con **Steam abierto y con sesión iniciada**. Si son amigos en Steam, mejor.
+2. Los dos abren el juego **en modo standalone**: clic derecho en `Labrynn.uproject` → *Launch game*.
+   También sirve desde el editor: Play → **Standalone Game**. En PIE común Steam no se activa.
+3. El menú tiene que decir `servicio: STEAM`. Si dice `NULL`, Steam no inició; revisen que esté abierto.
+4. Enzo → **Crear partida**. Luis → **Buscar partidas** → aparece "Unirse a Enzo (1/4)" → clic.
+   - Otra opción: **Shift+Tab** → Amigos → clic derecho en Enzo → **Unirse a la partida**.
+5. Si no aparece o no conecta, pásenle a Claude el log `Saved\Logs\Labrynn.log` de **las dos** PCs.
+
+**Fallback si Steam falla:** IP directa. Los dos instalan **Tailscale** (gratis) y lo abren con `-nosteam`. Enzo crea la partida;
+Luis escribe la IP 100.x.x.x de Enzo y toca **Unirse por IP**.
+
 ## 3. 🟡 Joystick con drift
 Hay un **"Wireless Controller" Bluetooth** (joystick de PlayStation) conectado. En una prueba, el personaje del host
 caminó solo por el laberinto, y lo más probable es que haya sido drift del stick (el juego lee el joystick aunque la ventana

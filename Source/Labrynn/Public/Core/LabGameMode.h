@@ -29,6 +29,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Game", meta = (ClampMin = 1, ClampMax = 4))
 	int32 MaxPlayers = 4;
 
+	/** 1 de cada N jugadores empieza con linterna (2 = la mitad del grupo). Debug: -LabAllFlashlights. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light", meta = (ClampMin = 1, ClampMax = 4))
+	int32 FlashlightEveryN = 2;
+
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
 private:

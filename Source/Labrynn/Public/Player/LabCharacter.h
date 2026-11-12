@@ -101,6 +101,57 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
 	float FlashlightRange = 1600.f;
 
+	// --- Luz compartida: pocas linternas, batería limitada ---
+
+	/** ¿Este jugador tiene linterna? Lo decide el GameMode (por defecto, la mitad del grupo). */
+	UPROPERTY(ReplicatedUsing = OnRep_FlashlightOn, BlueprintReadOnly, Category = "Lab|Light")
+	bool bHasFlashlight = false;
+
+	/** Batería 0..255 (replicada a todos para que vean la linterna del otro debilitarse). */
+	UPROPERTY(Replicated)
+	uint8 BatteryByte = 255;
+
+	/** Segundos que dura una batería llena con la linterna prendida. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light", meta = (ClampMin = 10))
+	float BatterySeconds = 240.f;
+
+	/** Por debajo de esta carga la linterna parpadea y pierde intensidad. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float LowBatteryThreshold = 0.25f;
+
+	/** Brillo personal tenue (todos lo tienen): permite ver la silueta de los compañeros cercanos. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<class UPointLightComponent> PersonalGlow;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
+	float PersonalGlowIntensity = 25.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
+	float PersonalGlowRadius = 220.f;
+
+public:
+	virtual void Tick(float DeltaSeconds) override;
+
+	/** Solo servidor. */
+	void SetHasFlashlight(bool bHas);
+
+	/** Solo servidor. Suma batería (Amount en 0..1). Para pickups de baterías. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Lab|Light")
+	void AddBattery(float Amount);
+
+	UFUNCTION(BlueprintPure, Category = "Lab|Light")
+	bool HasFlashlight() const { return bHasFlashlight; }
+
+	/** 0..1 */
+	UFUNCTION(BlueprintPure, Category = "Lab|Light")
+	float GetBattery() const { return BatteryByte / 255.f; }
+
 private:
 	void ApplyFlashlightState();
+	void UpdateFlashlightIntensity(float DeltaSeconds);
+
+	/** Batería precisa (solo servidor); BatteryByte es su versión replicada. */
+	float BatteryServer = 1.f;
+	float FlickerTimer = 0.f;
+	float FlickerFactor = 1.f;
 };

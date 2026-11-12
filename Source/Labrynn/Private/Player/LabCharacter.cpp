@@ -4,6 +4,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Components/PointLightComponent.h"
 #include "EnhancedInputComponent.h"
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -47,6 +48,15 @@ ALabCharacter::ALabCharacter()
 	Flashlight->SetCastShadows(true);
 	Flashlight->bUseInverseSquaredFalloff = true;
 
+	// Brillo personal: luz mínima alrededor del cuerpo, visible para todos.
+	PersonalGlow = CreateDefaultSubobject<UPointLightComponent>(TEXT("PersonalGlow"));
+	PersonalGlow->SetupAttachment(GetCapsuleComponent());
+	PersonalGlow->SetRelativeLocation(FVector(0.f, 0.f, 40.f));
+	PersonalGlow->SetCastShadows(false);
+	PersonalGlow->SetLightColor(FLinearColor(1.f, 0.85f, 0.7f));
+
+	PrimaryActorTick.bCanEverTick = true;
+
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
 	GetCharacterMovement()->MaxWalkSpeed = 450.f;
@@ -57,9 +67,12 @@ void ALabCharacter::BeginPlay()
 	Super::BeginPlay();
 #if !UE_BUILD_SHIPPING
 	FParse::Value(FCommandLine::Get(), TEXT("LabFlashlight="), FlashlightIntensity); // calibración rápida
+	FParse::Value(FCommandLine::Get(), TEXT("LabBatterySeconds="), BatterySeconds);
 #endif
 	Flashlight->SetIntensity(FlashlightIntensity);
 	Flashlight->SetAttenuationRadius(FlashlightRange);
+	PersonalGlow->SetIntensity(PersonalGlowIntensity);
+	PersonalGlow->SetAttenuationRadius(PersonalGlowRadius);
 	ApplyFlashlightState();
 
 	static const TCHAR* Roles[] = { TEXT("None"), TEXT("SimulatedProxy"), TEXT("AutonomousProxy"), TEXT("Authority") };
@@ -73,6 +86,73 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ALabCharacter, bFlashlightOn);
+	DOREPLIFETIME(ALabCharacter, bHasFlashlight);
+	DOREPLIFETIME(ALabCharacter, BatteryByte);
+}
+
+void ALabCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// Servidor: descarga de batería.
+	if (HasAuthority() && bHasFlashlight && bFlashlightOn && BatteryServer > 0.f)
+	{
+		BatteryServer = FMath::Max(0.f, BatteryServer - DeltaSeconds / BatterySeconds);
+		const uint8 NewByte = static_cast<uint8>(FMath::CeilToInt(BatteryServer * 255.f));
+		if (NewByte != BatteryByte)
+		{
+			BatteryByte = NewByte;
+		}
+		if (BatteryServer <= 0.f)
+		{
+			bFlashlightOn = false; // se agotó
+			ApplyFlashlightState();
+		}
+	}
+
+	// Todas las máquinas: intensidad según batería, con parpadeo cosmético cuando queda poca.
+	UpdateFlashlightIntensity(DeltaSeconds);
+}
+
+void ALabCharacter::UpdateFlashlightIntensity(float DeltaSeconds)
+{
+	if (!Flashlight || !Flashlight->IsVisible())
+	{
+		return;
+	}
+	const float Battery = GetBattery();
+	float Strength = 1.f;
+	if (Battery < LowBatteryThreshold)
+	{
+		// Se debilita y parpadea más seguido cuanto menos carga queda.
+		const float Low = Battery / FMath::Max(LowBatteryThreshold, KINDA_SMALL_NUMBER); // 0..1
+		FlickerTimer -= DeltaSeconds;
+		if (FlickerTimer <= 0.f)
+		{
+			const bool bDip = FMath::FRand() > 0.35f + 0.6f * Low;
+			FlickerFactor = bDip ? FMath::FRandRange(0.05f, 0.4f) : 1.f;
+			FlickerTimer = bDip ? FMath::FRandRange(0.04f, 0.12f) : FMath::FRandRange(0.1f, 0.2f + 1.5f * Low);
+		}
+		Strength = FMath::Lerp(0.35f, 1.f, Low) * FlickerFactor;
+	}
+	Flashlight->SetIntensity(FlashlightIntensity * Strength);
+}
+
+void ALabCharacter::SetHasFlashlight(bool bHas)
+{
+	check(HasAuthority());
+	bHasFlashlight = bHas;
+	ApplyFlashlightState();
+}
+
+void ALabCharacter::AddBattery(float Amount)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	BatteryServer = FMath::Clamp(BatteryServer + Amount, 0.f, 1.f);
+	BatteryByte = static_cast<uint8>(FMath::CeilToInt(BatteryServer * 255.f));
 }
 
 void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -136,6 +216,10 @@ void ALabCharacter::DoJumpEnd()
 
 void ALabCharacter::ToggleFlashlightInput()
 {
+	if (!bHasFlashlight || (!bFlashlightOn && GetBattery() <= 0.f))
+	{
+		return; // sin linterna o sin batería: no hace nada (TODO: sonido de "clic" vacío)
+	}
 	// Predicción local inmediata; el servidor confirma.
 	bFlashlightOn = !bFlashlightOn;
 	ApplyFlashlightState();
@@ -144,7 +228,8 @@ void ALabCharacter::ToggleFlashlightInput()
 
 void ALabCharacter::ServerSetFlashlight_Implementation(bool bOn)
 {
-	bFlashlightOn = bOn;
+	// El servidor valida: no se puede prender sin linterna o sin batería.
+	bFlashlightOn = bOn && bHasFlashlight && BatteryServer > 0.f;
 	ApplyFlashlightState(); // en el listen server OnRep no se dispara solo
 }
 
@@ -157,6 +242,6 @@ void ALabCharacter::ApplyFlashlightState()
 {
 	if (Flashlight)
 	{
-		Flashlight->SetVisibility(bFlashlightOn);
+		Flashlight->SetVisibility(bHasFlashlight && bFlashlightOn);
 	}
 }

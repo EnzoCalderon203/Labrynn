@@ -1,6 +1,8 @@
 #include "Core/LabPlayerController.h"
 
 #include "Core/LabCameraManager.h"
+#include "Online/LabSessionSubsystem.h"
+#include "Player/LabCharacter.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
@@ -31,6 +33,14 @@ void ALabPlayerController::BeginPlay()
 #if !UE_BUILD_SHIPPING
 		SetupAutoShot();
 #endif
+	}
+}
+
+void ALabPlayerController::ReturnToMenu()
+{
+	if (ULabSessionSubsystem* S = GetGameInstance()->GetSubsystem<ULabSessionSubsystem>())
+	{
+		S->LeaveGame();
 	}
 }
 
@@ -82,6 +92,12 @@ void ALabPlayerController::DoAutoShot()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[AutoShot] %s no encontró a otro jugador"), *GetNameSafe(Me));
 		}
+		for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[AutoShot]   %s local=%d linterna=%d prendida=%d bateria=%.0f%%"),
+				*It->GetName(), It->IsLocallyControlled() ? 1 : 0, It->HasFlashlight() ? 1 : 0,
+				It->IsFlashlightOn() ? 1 : 0, It->GetBattery() * 100.f);
+		}
 	}
 	// Esperar un par de frames a que la cámara rote.
 	FTimerHandle H;
@@ -101,6 +117,9 @@ void ALabPlayerController::SetupInputComponent()
 	{
 		return;
 	}
+
+	// Esc: salir de la partida y volver al menú. (En PIE, Esc lo captura el editor para cerrar PIE.)
+	InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ALabPlayerController::ReturnToMenu);
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{

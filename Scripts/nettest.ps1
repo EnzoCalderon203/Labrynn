@@ -23,12 +23,14 @@ Remove-Item "$logs\*.log" -ErrorAction SilentlyContinue
 Remove-Item $shots -Recurse -ErrorAction SilentlyContinue
 
 $render = if ($NoRender) { '-nullrhi' } else { '-windowed -ResX=1280 -ResY=720' }
-$common = "-game $render -nosound -unattended -nosplash -log $Extra"
+# -nosteam siempre: dos instancias en la misma PC no pueden usar Steam a la vez, y si el host usara Steam
+# escucharía por SteamSockets (no por IP) y el cliente no podría conectarse a 127.0.0.1.
+$common = "-game $render -nosound -unattended -nosplash -log -nosteam $Extra"
 
 # Solo el host se cierra solo (-LabAutoQuit); al cliente lo cierra el script cuando termina el host.
 if ($Menu) {
-    $srvTarget = '-nosteam -LabMenuHost'   # sin mapa: arranca en L_Menu (GameDefaultMap)
-    $cliTarget = '-nosteam -LabMenuJoin'
+    $srvTarget = '-LabMenuHost'   # sin mapa: arranca en L_Menu (GameDefaultMap)
+    $cliTarget = '-LabMenuJoin'
 } else {
     $srvTarget = "/Game/Labrynn/Maps/L_Labrynn?listen?Seed=$Seed"
     $cliTarget = '127.0.0.1'

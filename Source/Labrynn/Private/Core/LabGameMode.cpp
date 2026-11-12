@@ -3,6 +3,7 @@
 #include "Core/LabGameState.h"
 #include "Core/LabPlayerController.h"
 #include "Player/LabCharacter.h"
+#include "UI/LabHUD.h"
 #include "Maze/LabMaze.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -14,6 +15,7 @@ ALabGameMode::ALabGameMode()
 	GameStateClass = ALabGameState::StaticClass();
 	PlayerControllerClass = ALabPlayerController::StaticClass();
 	DefaultPawnClass = ALabCharacter::StaticClass();
+	HUDClass = ALabHUD::StaticClass();
 	bUseSeamlessTravel = false;
 
 	// Blueprints hijos con meshes/animaciones/input asignados (contenido de la plantilla First Person).
@@ -66,10 +68,24 @@ void ALabGameMode::RestartPlayer(AController* NewPlayer)
 {
 	const ALabGameState* GS = GetGameState<ALabGameState>();
 	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	const int32 Index = NextSpawnIndex++;
 	if (NewPlayer && Maze && Maze->IsBuilt())
 	{
-		RestartPlayerAtTransform(NewPlayer, Maze->GetSpawnTransform(NextSpawnIndex++));
-		return;
+		RestartPlayerAtTransform(NewPlayer, Maze->GetSpawnTransform(Index));
 	}
-	Super::RestartPlayer(NewPlayer);
+	else
+	{
+		Super::RestartPlayer(NewPlayer);
+	}
+
+	// Luz compartida: solo 1 de cada FlashlightEveryN jugadores arranca con linterna (el 1º, el 3º...).
+	if (ALabCharacter* Ch = NewPlayer ? Cast<ALabCharacter>(NewPlayer->GetPawn()) : nullptr)
+	{
+		bool bGive = (Index % FMath::Max(1, FlashlightEveryN)) == 0;
+#if !UE_BUILD_SHIPPING
+		bGive |= FParse::Param(FCommandLine::Get(), TEXT("LabAllFlashlights"));
+#endif
+		Ch->SetHasFlashlight(bGive);
+		UE_LOG(LogLabrynn, Log, TEXT("Jugador %d (%s): linterna=%d"), Index, *GetNameSafe(Ch), bGive ? 1 : 0);
+	}
 }

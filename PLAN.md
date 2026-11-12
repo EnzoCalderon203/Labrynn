@@ -11,8 +11,10 @@ Orden de recorte: dardos → tiza → amuleto/Corazón → gas → botiquín.
 |---|---|---|---|
 | 13:00–14:30 | Fase 0: instalar y verificar el toolchain; repo; CLAUDE.md | E | ✅ |
 | 14:30–15:30 | Proyecto C++, laberinto con seed replicada, 2 jugadores con cuerpo completo (prueba de red automática) | E | ✅ |
-| 15:30–17:00 | Pulido del Hito 1: oscuridad real (exposición fija), materiales, `Lab.Seed` / reinicio rápido, prueba en PIE de Enzo | E | 🔄 |
-| 17:00–20:00 | **Online por internet**: OSS Steam (AppID 480), Host/Join con menú mínimo y fallback por IP directa | E | ⏳ |
+| 15:30–17:00 | Pulido del Hito 1: oscuridad real (exposición fija), materiales, calibración con capturas | E | ✅ (14:50) |
+| 17:00–20:00 | **Online por internet**: OSS Steam (AppID 480), Host/Join con menú mínimo y fallback por IP directa | E | ✅ código (15:00), falta probar entre 2 PCs |
+| 15:10–15:25 | Adelanto del viernes: **luz compartida** (batería, 1 linterna cada 2, brillo personal, HUD, Esc) | E | ✅ |
+| 15:30–… | Adelanto del viernes: **reliquia** | E | 🔄 |
 | 20:00–22:00 | Prueba real Enzo ↔ Luis por internet. Luis instala con `PROMPT_LUIS.md` | E+L | ⏳ |
 
 ## Viernes 13: Hito 2 (se puede jugar de principio a fin)

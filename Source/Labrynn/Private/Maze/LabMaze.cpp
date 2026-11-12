@@ -393,6 +393,18 @@ void ALabMaze::BuildObstacles()
 		Obstacles.Add(C, EObstacle::Tunnel);
 	}
 
+	// Bordes en el camino principal (en celdas "puente": sin rodeo posible → el último siempre necesita una mano).
+	Ledges.Reset();
+	if (G->LedgesOnMainPath > 0)
+	{
+		const FIntPoint Center((Layout.CenterMin.X + Layout.CenterMax.X) / 2, Layout.CenterMin.Y);
+		PlaceMainPathLedge(FindPath(Layout.Entrance, Center), Layout.Entrance, Center);
+		if (G->LedgesOnMainPath > 1)
+		{
+			PlaceMainPathLedge(FindPath(Center, Layout.Exit), Center, Layout.Exit);
+		}
+	}
+
 	// Validación: el camino entrada → centro → salida tiene que ser transitable con salto o agachado.
 	// (Los obstáculos nunca cierran el paso por la grilla; lo que se valida es que las medidas sean pasables.)
 	const float JumpHeight = 420.f * 420.f / (2.f * 980.f);          // JumpZVelocity de la plantilla, gravedad por defecto
@@ -408,6 +420,69 @@ void ALabMaze::BuildObstacles()
 	{
 		UE_LOG(LogLabrynn, Error, TEXT("¡Medidas de obstáculos no transitables! Revisar DA_Gameplay."));
 	}
+}
+
+TArray<FIntPoint> ALabMaze::FindPath(const FIntPoint& A, const FIntPoint& B, const FIntPoint& Blocked) const
+{
+	static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+	TMap<FIntPoint, FIntPoint> Parent;
+	TArray<FIntPoint> Queue = { A };
+	Parent.Add(A, A);
+	for (int32 H = 0; H < Queue.Num(); ++H)
+	{
+		const FIntPoint C = Queue[H];
+		if (C == B)
+		{
+			break;
+		}
+		for (const FIntPoint& D : Dirs)
+		{
+			const FIntPoint N = C + D;
+			if (Layout.IsValidCell(N) && N != Blocked && !Parent.Contains(N) && !Layout.HasWallBetween(C, D) && !PitCells.Contains(N))
+			{
+				Parent.Add(N, C);
+				Queue.Add(N);
+			}
+		}
+	}
+	TArray<FIntPoint> Path;
+	if (Parent.Contains(B))
+	{
+		for (FIntPoint C = B; C != A; C = Parent[C]) { Path.Insert(C, 0); }
+		Path.Insert(A, 0);
+	}
+	return Path;
+}
+
+void ALabMaze::PlaceMainPathLedge(const TArray<FIntPoint>& Path, const FIntPoint& From, const FIntPoint& To)
+{
+	const ULabGameplaySettings* G = GameplaySettings ? GameplaySettings.Get() : GetDefault<ULabGameplaySettings>();
+	// Recorre el camino desde el medio hacia afuera buscando una celda de pasillo recto que sea "puente".
+	const int32 Mid = Path.Num() / 2;
+	for (int32 k = 0; k < Path.Num(); ++k)
+	{
+		const int32 i = Mid + ((k % 2) ? (k + 1) / 2 : -(k / 2));
+		if (i < 2 || i >= Path.Num() - 1)
+		{
+			continue;
+		}
+		const FIntPoint C = Path[i];
+		if (Layout.IsInCenterRoom(C) || Obstacles.Contains(C) || !Layout.FindStraightCorridors().Contains(C))
+		{
+			continue;
+		}
+		if (FindPath(From, To, C).Num() > 0)
+		{
+			continue; // hay rodeo: no garantiza que haga falta ayuda
+		}
+		AddBox(ObstacleMeshes, FVector((C.X + 0.5f) * CellSize, (C.Y + 0.5f) * CellSize, G->LedgeHeight * 0.5f), FVector(CellSize, CellSize, G->LedgeHeight));
+		Obstacles.Add(C, EObstacle::Ledge);
+		Ledges.Add(TPair<FIntPoint, FIntPoint>(C, Path[i - 1]));
+		UE_LOG(LogLabrynn, Log, TEXT("Borde (%.0f cm) en %s, celda puente del camino %s → %s (se llega desde %s)"),
+			G->LedgeHeight, *C.ToString(), *From.ToString(), *To.ToString(), *Path[i - 1].ToString());
+		return;
+	}
+	UE_LOG(LogLabrynn, Warning, TEXT("No hay celda puente en el camino %s → %s: sin borde obligatorio"), *From.ToString(), *To.ToString());
 }
 
 void ALabMaze::BuildAmbience()

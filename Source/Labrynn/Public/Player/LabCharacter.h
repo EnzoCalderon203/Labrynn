@@ -30,6 +30,19 @@ enum class ELabLifeState : uint8
 	Dead   UMETA(DisplayName = "Muerto"),  // solo lo revive el Corazón del Laberinto
 };
 
+/** Estado replicado de "me están subiendo de la mano" (se interpola igual en servidor y cliente dueño). */
+USTRUCT()
+struct FLabPullState
+{
+	GENERATED_BODY()
+
+	UPROPERTY() bool bActive = false;
+	UPROPERTY() FVector_NetQuantize From;
+	UPROPERTY() FVector_NetQuantize To;
+	UPROPERTY() float StartServerTime = 0.f;
+	UPROPERTY() float Duration = 1.5f;
+};
+
 UCLASS()
 class LABRYNN_API ALabCharacter : public ACharacter, public ILabInteractable
 {
@@ -64,6 +77,16 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Lab|Voice")
 	bool IsTalking() const { return bTalking; }
+
+	// --- Pie de banco y dar la mano ---
+	UFUNCTION(BlueprintPure, Category = "Lab|Help")
+	bool IsReaching() const { return bReaching; }
+
+	UFUNCTION(BlueprintPure, Category = "Lab|Help")
+	bool IsBeingPulled() const { return Pull.bActive; }
+
+	/** Punto de la mano extendida (mundo). */
+	FVector GetHandPoint() const;
 
 	// --- Escondites ---
 	/** Solo servidor (lo llama ALabHidingSpot). */
@@ -144,6 +167,45 @@ protected:
 	/** Hasta qué hora del servidor está en una corriente de aire (no se puede encender). */
 	UPROPERTY(Replicated)
 	float GasUntilServerTime = 0.f;
+
+	// Dar la mano (arriba: mantiene E; abajo: salta + E).
+	UPROPERTY(ReplicatedUsing = OnRep_Reaching)
+	bool bReaching = false;
+
+	UFUNCTION()
+	void OnRep_Reaching();
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetReaching(bool bReach);
+
+	void InteractReleased();
+	/** ¿Puedo estirar la mano? (en un borde, mirando hacia abajo, con desnivel adelante) */
+	bool CanStartReach() const;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Pull)
+	FLabPullState Pull;
+
+	UFUNCTION()
+	void OnRep_Pull();
+	void ApplyPull();
+	void StartPull(ALabCharacter* Lower);
+	void EndPull(bool bSuccess);
+	void TickHelp(float DeltaSeconds);
+
+	TWeakObjectPtr<ALabCharacter> Pulling;   // (arriba) a quién estoy subiendo
+	TWeakObjectPtr<ALabCharacter> PulledBy;  // (abajo) quién me sube
+
+	UFUNCTION(Client, Reliable)
+	void ClientLaunch(FVector Velocity);
+	void BoostIgnorePawns();
+
+	/** Brazo extendido (provisorio: cilindro), visible para todos incluido el dueño. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> ReachArm;
+
+	/** Sonido de esfuerzo al tirar (lo asigna Luis). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Help|Audio")
+	TObjectPtr<class USoundBase> EffortSound;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Hiding)
 	bool bHiding = false;

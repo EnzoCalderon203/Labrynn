@@ -374,6 +374,30 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - **Cliente: lo mismo con C real**, con **0 correcciones de red ignoradas**. ✅
 - 🐞 **Aprendizaje:** el script de input no guardaba (`Cannot remove ... as it is read only`). Los `.uasset` son `lockable` en `.gitattributes`,
   así que Git LFS los deja en **solo lectura** hasta bloquearlos. Solución: `git lfs lock` de los assets de input, que son de Enzo. Quedó en CLAUDE.md.
+**19:24 · Diseño v2, punto 5: Pie de banco + dar la mano ✅**
+- **Bordes de 150 cm** (más que salto + paso, ~135): la generación busca en los caminos entrada → centro y centro → salida una **celda puente**
+  (una que, si se bloquea, deja sin camino; o sea, sin rodeo posible) y pone el borde ahí. **El último siempre necesita una mano.**
+  El Minotauro no trepa bordes. ⚠️ **Consecuencia: el juego necesita 2 o más jugadores** (solo no se pueden pasar los bordes).
+- **Pie de banco:** E sobre un compañero **agachado** → impulso de 620 hacia arriba y 300 hacia adelante (atraviesa al compañero y sin frenado en el aire
+  durante 0,8 s). El dueño lo predice con `ClientLaunch`.
+- **Dar la mano:** el de arriba, en el filo y mirando hacia abajo, **mantiene E** → brazo extendido (cilindro provisorio, visible para todos; **no lo
+  verifiqué con captura**). Mientras sostiene, no se mueve ni usa el farol. El de abajo **salta + E** (alcance de 60 cm: **sin saltar no llega**) y
+  **sube en 1,5 s**, con un tirón interpolado igual en servidor y cliente a partir de datos replicados.
+- **Tirar gasta stamina** al que ayuda (30/s, ×1,6 si el de abajo lleva la reliquia). Si se queda sin stamina o suelta E, **el de abajo cae**.
+  Sonido `EffortSound` para Luis. Valores en `DA_Gameplay`.
+- **Techo del laberinto subido de 350 a 400 cm**: con 350, al impulsarse se chocaba la cabeza y no llegaba arriba.
+- **Iteración guiada por logs** (velocidad a +0,1 s y +0,3 s después del impulso):
+  1. Con 350 de techo, la cabeza chocaba.
+  2. Sin avance horizontal: el frenado en el aire de la plantilla (1500) lo frenaba.
+  3. Chocaba contra el compañero agachado.
+  4. Se chocaba con la **cara del borde** (subía demasiado lento para lo que avanzaba).
+
+  Solución: impulso más vertical, sin frenado y atravesando al compañero.
+- **Prueba con input real:**
+  - Cliente **C** + host **E** → `pie de banco` → host arriba (z=248).
+  - Host **mantiene E** → `estira la mano`. Cliente **Espacio + E** → `se agarró` → `subió` (el cliente queda arriba, z=248).
+  - **Solo E sin saltar → no se agarra.**
+  - Con el host herido (15 de stamina): `no aguanta más y suelta` → `se soltó y cae`. ✅
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

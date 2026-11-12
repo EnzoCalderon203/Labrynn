@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -67,7 +67,7 @@ public:
 	float CellSize = 400.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lab|Maze", meta = (ClampMin = 200))
-	float WallHeight = 350.f;
+	float WallHeight = 400.f; // 250 cm libres sobre un borde de 150 (para subir con pie de banco)
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lab|Maze", meta = (ClampMin = 10))
 	float WallThickness = 40.f;
@@ -160,9 +160,13 @@ public:
 	TObjectPtr<class ULabGameplaySettings> GameplaySettings;
 
 	/** Obstáculos de movimiento (deterministas). Rubble = saltar; Tunnel = agacharse (bloquea al Minotauro). */
-	enum class EObstacle : uint8 { Rubble, Beam, Tunnel };
+	enum class EObstacle : uint8 { Rubble, Beam, Tunnel, Ledge };
 	const TMap<FIntPoint, EObstacle>& GetObstacles() const { return Obstacles; }
 	bool IsTunnelCell(const FIntPoint& C) const { const EObstacle* O = Obstacles.Find(C); return O && *O == EObstacle::Tunnel; }
+	bool IsLedgeCell(const FIntPoint& C) const { const EObstacle* O = Obstacles.Find(C); return O && *O == EObstacle::Ledge; }
+
+	/** Bordes en el camino principal: (celda del borde, celda de abajo desde la que se llega). */
+	const TArray<TPair<FIntPoint, FIntPoint>>& GetLedges() const { return Ledges; }
 
 	/** ¿El camino entrada → centro → salida es transitable con salto/agachado? (se calcula en Build) */
 	bool IsMainPathValid() const { return bMainPathValid; }
@@ -172,7 +176,12 @@ protected:
 	void BuildObstacles();
 
 	TMap<FIntPoint, EObstacle> Obstacles;
+	TArray<TPair<FIntPoint, FIntPoint>> Ledges;
 	bool bMainPathValid = true;
+
+	/** Camino BFS de celdas (sin fosos) de A a B; vacío si no hay. Blocked = celda prohibida extra. */
+	TArray<FIntPoint> FindPath(const FIntPoint& A, const FIntPoint& B, const FIntPoint& Blocked = FIntPoint(-99, -99)) const;
+	void PlaceMainPathLedge(const TArray<FIntPoint>& Path, const FIntPoint& From, const FIntPoint& To);
 
 	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
 	TObjectPtr<UInstancedStaticMeshComponent> ObstacleMeshes;

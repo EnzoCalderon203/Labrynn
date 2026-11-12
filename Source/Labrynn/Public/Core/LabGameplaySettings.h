@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
@@ -47,6 +47,33 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 50))
 	float CrouchSpeed = 220.f;
+
+	// --- Bordes: pie de banco y dar la mano ---
+	/** Altura de los bordes (cm): más que salto + paso (~135), así solo se suben con ayuda. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda", meta = (ClampMin = 140))
+	float LedgeHeight = 150.f;
+
+	/** Impulso del pie de banco (cm/s). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda")
+	float BoostLaunchUp = 620.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda")
+	float BoostLaunchForward = 300.f; // durante el impulso no hay frenado en el aire
+
+	/** Distancia máxima de la mano (cm) para agarrarse (en la práctica, hay que saltar). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda")
+	float HandReach = 60.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda", meta = (ClampMin = 0.2))
+	float PullSeconds = 1.5f;
+
+	/** Stamina por segundo que gasta el que tira. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda")
+	float PullStaminaPerSecond = 30.f;
+
+	/** Multiplicador si el de abajo carga la reliquia. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda")
+	float PullRelicMultiplier = 1.6f;
 
 	/** Bordes altos (pie de banco / dar la mano) en el camino entrada → centro → salida. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 0, ClampMax = 10))

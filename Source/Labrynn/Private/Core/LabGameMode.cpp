@@ -293,6 +293,73 @@ void ALabGameMode::StartPlay()
 		}
 	}
 
+	// -LabLedgeSetup=N: cliente al pie del primer borde (mirándolo) y host detrás; -LabLedgeTurn=M: si el host está
+	// arriba, lo pone en el filo mirando hacia abajo (la cámara no se puede mover con input simulado).
+	{
+		float SetupAt = 0.f, TurnAt = 0.f;
+		const bool bSetup = FParse::Value(FCommandLine::Get(), TEXT("LabLedgeSetup="), SetupAt);
+		const bool bTurn = FParse::Value(FCommandLine::Get(), TEXT("LabLedgeTurn="), TurnAt);
+		auto LedgeInfo = [this](FVector& Face, FVector& Dir, FVector& LedgeCenter) -> bool
+		{
+			const ALabMaze* Maze = GetGameState<ALabGameState>()->GetMaze();
+			if (!Maze || Maze->GetLedges().Num() == 0) { return false; }
+			const TPair<FIntPoint, FIntPoint>& L = Maze->GetLedges()[0];
+			Dir = FVector(L.Key.X - L.Value.X, L.Key.Y - L.Value.Y, 0.f);
+			LedgeCenter = Maze->CellToWorld(L.Key);
+			Face = Maze->CellToWorld(L.Value) + Dir * Maze->CellSize * 0.5f;
+			return true;
+		};
+		if (bSetup)
+		{
+			FTimerHandle T1;
+			GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [this, LedgeInfo]()
+			{
+				FVector Face, Dir, Center;
+				if (!LedgeInfo(Face, Dir, Center)) { return; }
+				for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+				{
+					APlayerController* PC = It->Get();
+					if (!PC || !PC->GetPawn()) { continue; }
+					const bool bClient = !PC->IsLocalController();
+					PC->GetPawn()->SetActorLocation(Face - Dir * (bClient ? 45.f : 170.f) + FVector(0.f, 0.f, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+					PC->ClientSetRotation(FRotator(bClient ? 0.f : -25.f, Dir.Rotation().Yaw, 0.f));
+				}
+				UE_LOG(LogLabrynn, Log, TEXT("[Prueba] borde: cliente al pie, host detrás"));
+			}), SetupAt, false);
+		}
+		if (bTurn)
+		{
+			FTimerHandle T2;
+			GetWorldTimerManager().SetTimer(T2, FTimerDelegate::CreateWeakLambda(this, [this, LedgeInfo]()
+			{
+				FVector Face, Dir, Center;
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				if (!LedgeInfo(Face, Dir, Center) || !PC || !PC->GetPawn()) { return; }
+				const float Z = PC->GetPawn()->GetActorLocation().Z;
+				UE_LOG(LogLabrynn, Log, TEXT("[Prueba] host z=%.0f (%s del borde)"), Z, Z > 200.f ? TEXT("ARRIBA") : TEXT("abajo"));
+				if (Z > 200.f)
+				{
+					PC->GetPawn()->SetActorLocation(FVector(Face.X, Face.Y, Z) + Dir * 45.f, false, nullptr, ETeleportType::TeleportPhysics);
+					PC->SetControlRotation(FRotator(-45.f, (-Dir).Rotation().Yaw, 0.f));
+				}
+			}), TurnAt, false);
+		}
+	}
+
+	// -LabWoundHost=N (a los 28 s): heridas al host para dejarle poca stamina (probar "se queda sin stamina y suelta").
+	{
+		float Wound = 0.f;
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabWoundHost="), Wound))
+		{
+			FTimerHandle TW;
+			GetWorldTimerManager().SetTimer(TW, FTimerDelegate::CreateWeakLambda(this, [this, Wound]()
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				if (ALabCharacter* H = PC ? Cast<ALabCharacter>(PC->GetPawn()) : nullptr) { H->AddWound(Wound); }
+			}), 28.f, false);
+		}
+	}
+
 	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
 	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
 	static bool bAutoStaminaDone = false;

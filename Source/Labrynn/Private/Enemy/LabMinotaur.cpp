@@ -156,7 +156,7 @@ void ALabMinotaur::RepathTo(const FIntPoint& RawTarget, bool bAvoidFire)
 			{
 				const FIntPoint N = C + D;
 				if (L.IsValidCell(N) && !Parent.Contains(N) && !L.HasWallBetween(C, D) && !Maze->GetPitCells().Contains(N)
-					&& !Maze->IsTunnelCell(N) // es demasiado grande para los túneles bajos
+					&& !Maze->IsTunnelCell(N) && !Maze->IsLedgeCell(N) // no entra en túneles ni trepa bordes
 					&& !(bUseFire && Fire.Contains(N)))
 				{
 					Parent.Add(N, C);

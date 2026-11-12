@@ -88,6 +88,20 @@ ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	PersonalGlow->SetCastShadows(false);
 	PersonalGlow->SetLightColor(FLinearColor(1.f, 0.85f, 0.7f));
 
+	// Brazo extendido para dar la mano (provisorio: cilindro hacia adelante y abajo).
+	ReachArm = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ReachArm"));
+	ReachArm->SetupAttachment(GetCapsuleComponent());
+	ReachArm->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	ReachArm->SetVisibility(false);
+	{
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> ArmMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+		ReachArm->SetStaticMesh(ArmMesh.Object);
+		const FVector Dir = FVector(0.75f, 0.f, -0.66f).GetSafeNormal();
+		ReachArm->SetRelativeRotation(FQuat::FindBetweenNormals(FVector::UpVector, Dir));
+		ReachArm->SetRelativeLocation(FVector(20.f, 22.f, 45.f) + Dir * 35.f);
+		ReachArm->SetRelativeScale3D(FVector(0.09f, 0.09f, 0.7f));
+	}
+
 	PrimaryActorTick.bCanEverTick = true;
 
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
@@ -130,6 +144,8 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, GasUntilServerTime);
 	DOREPLIFETIME(ALabCharacter, bTalking);
 	DOREPLIFETIME(ALabCharacter, bHiding);
+	DOREPLIFETIME(ALabCharacter, bReaching);
+	DOREPLIFETIME(ALabCharacter, Pull);
 }
 
 // ---------------------------------------------------------------- Escondites
@@ -405,6 +421,10 @@ bool ALabCharacter::CanSprint() const
 float ALabCharacter::GetDesiredMaxSpeed(bool bWantsSprint) const
 {
 	const ULabStaminaSettings* S = GetStaminaSettings();
+	if (bReaching)
+	{
+		return 0.f; // sosteniendo la mano: no se mueve
+	}
 	float Speed = S->WalkSpeed;
 	if (bExhausted)
 	{
@@ -773,21 +793,254 @@ void ALabCharacter::TickRevive(float DeltaSeconds)
 
 bool ALabCharacter::CanInteract(const ALabCharacter* By) const
 {
-	return LifeState == ELabLifeState::Downed && By && By != this && By->IsAliveAndFree();
+	if (!By || By == this || !By->IsAliveAndFree())
+	{
+		return false;
+	}
+	if (LifeState == ELabLifeState::Downed)
+	{
+		return true; // levantarlo
+	}
+	if (!IsAliveAndFree() || bHiding)
+	{
+		return false;
+	}
+	if (bReaching)
+	{
+		// Agarrarse de la mano: hay que llegar (en la práctica, saltando).
+		return !By->Pull.bActive && FVector::Dist(By->GetActorLocation() + FVector(0.f, 0.f, 60.f), GetHandPoint()) <= GetGameplaySettings()->HandReach;
+	}
+	return bIsCrouched && !By->bIsCrouched; // pie de banco
 }
 
 void ALabCharacter::Interact(ALabCharacter* By)
 {
-	if (CanInteract(By))
+	if (!HasAuthority() || !CanInteract(By))
+	{
+		return;
+	}
+	if (LifeState == ELabLifeState::Downed)
 	{
 		Reviver = By; // tiene que quedarse cerca ReviveSeconds
+	}
+	else if (bReaching)
+	{
+		StartPull(By);
+	}
+	else
+	{
+		// Pie de banco: el de arriba sale impulsado hacia adelante y arriba.
+		const ULabGameplaySettings* G = GetGameplaySettings();
+		const FVector Vel = By->GetActorForwardVector() * G->BoostLaunchForward + FVector(0.f, 0.f, G->BoostLaunchUp);
+		By->BoostIgnorePawns();
+		By->LaunchCharacter(Vel, true, true);
+		By->ClientLaunch(Vel); // el dueño lo predice igual (sin tirón por corrección)
+		UE_LOG(LogLabrynn, Log, TEXT("Ayuda: %s hace pie de banco a %s (vel=%s, mira yaw=%.0f)"), *GetName(), *By->GetName(), *Vel.ToCompactString(), By->GetActorRotation().Yaw);
+#if !UE_BUILD_SHIPPING
+		for (const float Dt : { 0.1f, 0.3f })
+		{
+			FTimerHandle H;
+			TWeakObjectPtr<ALabCharacter> WeakBy = By;
+			GetWorldTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [WeakBy, Dt]()
+			{
+				if (ALabCharacter* B = WeakBy.Get())
+				{
+					UE_LOG(LogLabrynn, Log, TEXT("Ayuda: +%.1fs vel=%s loc=%s modo=%d"), Dt, *B->GetVelocity().ToCompactString(), *B->GetActorLocation().ToCompactString(), (int32)B->GetCharacterMovement()->MovementMode.GetValue());
+				}
+			}), Dt, false);
+		}
+#endif
 	}
 }
 
 FText ALabCharacter::GetInteractPrompt(const ALabCharacter* By) const
 {
-	const FString Name = GetPlayerState() ? GetPlayerState()->GetPlayerName() : TEXT("compañero");
-	return FText::FromString(FString::Printf(TEXT("Levantar a %s (quedate cerca)"), *Name));
+	if (LifeState == ELabLifeState::Downed)
+	{
+		const FString Name = GetPlayerState() ? GetPlayerState()->GetPlayerName() : TEXT("compañero");
+		return FText::FromString(FString::Printf(TEXT("Levantar a %s (quedate cerca)"), *Name));
+	}
+	if (bReaching)
+	{
+		return FText::FromString(TEXT("Agarrarse de la mano"));
+	}
+	return FText::FromString(TEXT("Subir con pie de banco"));
+}
+
+// ---------------------------------------------------------------- Pie de banco y dar la mano
+
+void ALabCharacter::ClientLaunch_Implementation(FVector Velocity)
+{
+	if (!HasAuthority())
+	{
+		BoostIgnorePawns();
+		LaunchCharacter(Velocity, true, true);
+	}
+}
+
+void ALabCharacter::BoostIgnorePawns()
+{
+	// Durante el impulso atraviesa al compañero que hace de pie de banco (si no, se choca con él).
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	// Sin frenado en el aire durante el impulso: avance constante para pasar por encima del borde.
+	const float SavedBraking = GetCharacterMovement()->BrakingDecelerationFalling;
+	GetCharacterMovement()->BrakingDecelerationFalling = 0.f;
+	FTimerHandle H;
+	GetWorldTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this, SavedBraking]()
+	{
+		GetCharacterMovement()->BrakingDecelerationFalling = SavedBraking;
+		if (IsAliveAndFree()) { GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block); }
+	}), 0.8f, false);
+}
+
+FVector ALabCharacter::GetHandPoint() const
+{
+	const FVector Fwd = FVector(GetActorForwardVector().X, GetActorForwardVector().Y, 0.f).GetSafeNormal();
+	return GetActorLocation() + Fwd * 70.f + FVector(0.f, 0.f, -20.f);
+}
+
+bool ALabCharacter::CanStartReach() const
+{
+	if (!IsAliveAndFree() || bHiding || bIsCrouched || IsCarryingRelic() || Pull.bActive)
+	{
+		return false;
+	}
+	if (FRotator::NormalizeAxis(GetControlRotation().Pitch) > -20.f)
+	{
+		return false; // hay que mirar hacia abajo
+	}
+	// Desnivel adelante: el piso de enfrente está bastante más abajo que mis pies.
+	const FVector Fwd = FVector(GetActorForwardVector().X, GetActorForwardVector().Y, 0.f).GetSafeNormal();
+	const FVector Start = GetActorLocation() + Fwd * 90.f;
+	FHitResult Hit;
+	FCollisionQueryParams P(SCENE_QUERY_STAT(LabReach), false, this);
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, Start - FVector(0.f, 0.f, 500.f), ECC_Visibility, P))
+	{
+		return false;
+	}
+	const float Feet = GetActorLocation().Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	return Feet - Hit.ImpactPoint.Z > 100.f;
+}
+
+void ALabCharacter::InteractReleased()
+{
+	if (bReaching)
+	{
+		ServerSetReaching(false);
+	}
+}
+
+void ALabCharacter::ServerSetReaching_Implementation(bool bReach)
+{
+	if (bReach && !CanStartReach())
+	{
+		return;
+	}
+	if (bReaching == bReach)
+	{
+		return;
+	}
+	bReaching = bReach;
+	OnRep_Reaching();
+	UE_LOG(LogLabrynn, Log, TEXT("Ayuda: %s %s la mano"), *GetName(), bReaching ? TEXT("estira") : TEXT("retira"));
+	if (!bReaching)
+	{
+		if (ALabCharacter* L = Pulling.Get())
+		{
+			L->EndPull(false); // lo soltó
+		}
+	}
+}
+
+void ALabCharacter::OnRep_Reaching()
+{
+	ReachArm->SetVisibility(bReaching);
+}
+
+void ALabCharacter::StartPull(ALabCharacter* Lower)
+{
+	check(HasAuthority());
+	const ULabGameplaySettings* G = GetGameplaySettings();
+	const FVector Back = -FVector(GetActorForwardVector().X, GetActorForwardVector().Y, 0.f).GetSafeNormal();
+	Lower->Pull.bActive = true;
+	Lower->Pull.From = Lower->GetActorLocation();
+	Lower->Pull.To = GetActorLocation() + Back * 75.f + FVector(0.f, 0.f, 5.f); // arriba, detrás del que ayuda
+	Lower->Pull.StartServerTime = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
+	Lower->Pull.Duration = G->PullSeconds;
+	Lower->PulledBy = this;
+	Pulling = Lower;
+	Lower->ApplyPull();
+	if (EffortSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, EffortSound, GetActorLocation());
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Ayuda: %s se agarró de la mano de %s"), *Lower->GetName(), *GetName());
+}
+
+void ALabCharacter::EndPull(bool bSuccess)
+{
+	if (!HasAuthority() || !Pull.bActive)
+	{
+		return;
+	}
+	Pull.bActive = false;
+	if (ALabCharacter* Helper = PulledBy.Get())
+	{
+		Helper->Pulling.Reset();
+	}
+	PulledBy.Reset();
+	ApplyPull();
+	UE_LOG(LogLabrynn, Log, TEXT("Ayuda: %s %s"), *GetName(), bSuccess ? TEXT("subió") : TEXT("se soltó y cae"));
+}
+
+void ALabCharacter::OnRep_Pull()
+{
+	ApplyPull();
+}
+
+void ALabCharacter::ApplyPull()
+{
+	if (Pull.bActive)
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
+	}
+	else if (IsAliveAndFree() && !bHiding)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Falling); // aterriza solo (arriba o abajo)
+	}
+}
+
+void ALabCharacter::TickHelp(float DeltaSeconds)
+{
+	// El que está siendo subido (servidor y dueño interpolan igual, con datos replicados).
+	if (Pull.bActive && (HasAuthority() || IsLocallyControlled()))
+	{
+		const float Now = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
+		const float Alpha = FMath::Clamp((Now - Pull.StartServerTime) / FMath::Max(0.1f, Pull.Duration), 0.f, 1.f);
+		const FVector Pos = FMath::Lerp(FVector(Pull.From), FVector(Pull.To), Alpha) + FVector(0.f, 0.f, FMath::Sin(Alpha * PI) * 40.f);
+		SetActorLocation(Pos, false, nullptr, ETeleportType::TeleportPhysics);
+		if (HasAuthority() && Alpha >= 1.f)
+		{
+			EndPull(true);
+		}
+	}
+
+	// El que tira: gasta stamina; si se queda sin, suelta.
+	if (HasAuthority())
+	{
+		if (ALabCharacter* L = Pulling.Get())
+		{
+			const ULabGameplaySettings* G = GetGameplaySettings();
+			const float Mult = L->IsCarryingRelic() ? G->PullRelicMultiplier : 1.f;
+			SpendStamina(G->PullStaminaPerSecond * Mult * DeltaSeconds);
+			if (StaminaServer <= 0.f || !bReaching || !IsAliveAndFree())
+			{
+				UE_LOG(LogLabrynn, Log, TEXT("Ayuda: %s no aguanta más y suelta a %s"), *GetName(), *L->GetName());
+				L->EndPull(false);
+			}
+		}
+	}
 }
 
 void ALabCharacter::Tick(float DeltaSeconds)
@@ -797,6 +1050,7 @@ void ALabCharacter::Tick(float DeltaSeconds)
 	TickStamina(DeltaSeconds);
 	TickVoice(DeltaSeconds);
 	TickEyes(DeltaSeconds);
+	TickHelp(DeltaSeconds);
 
 	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
 	if (HasAuthority() && LifeState == ELabLifeState::Downed)
@@ -845,7 +1099,11 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(SprintAction, ETriggerEvent::Started, this, &ALabCharacter::SprintPressed);
 			EIC->BindAction(SprintAction, ETriggerEvent::Completed, this, &ALabCharacter::SprintReleased);
 		}
-		if (InteractAction) { EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &ALabCharacter::InteractInput); }
+		if (InteractAction)
+		{
+			EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &ALabCharacter::InteractInput);
+			EIC->BindAction(InteractAction, ETriggerEvent::Completed, this, &ALabCharacter::InteractReleased); // soltar la mano
+		}
 		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::LanternInput); }
 		if (CrouchAction)
 		{
@@ -936,10 +1194,17 @@ ALabCharacter* ALabCharacter::FindTeammateInFront() const
 
 void ALabCharacter::InteractInput()
 {
-	if (IsAliveAndFree())
+	if (!IsAliveAndFree())
 	{
-		ServerInteract();
+		return;
 	}
+	// En un borde, mirando hacia abajo y sin nada que interactuar: E (mantenida) = estirar la mano.
+	if (!bHiding && !FindBestInteractable() && CanStartReach())
+	{
+		ServerSetReaching(true);
+		return;
+	}
+	ServerInteract();
 }
 
 void ALabCharacter::ServerInteract_Implementation()
@@ -1040,7 +1305,7 @@ void ALabCharacter::DoJumpEnd()
 
 void ALabCharacter::LanternInput()
 {
-	if (HeldLantern.IsValid() && IsAliveAndFree())
+	if (HeldLantern.IsValid() && IsAliveAndFree() && !bReaching) // con la mano estirada no se usa el farol
 	{
 		ServerLanternToggle();
 	}

@@ -192,7 +192,7 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Resultado: `C_1 cayó` → el host lo levanta → `C_1 se levantó (salud 50)`. En la captura del caído se ve
   boca abajo con los brazos abiertos. ✅
 
-**15:40 · Trampas 1 y 2 ✅ (pinchos y foso)**
+**15:31 · Trampas 1 y 2 ✅ (pinchos y foso)**
 - `ALabTrapBase`: estado replicado Armed → **Warning** → Firing → Cooldown. El aviso previo es obligatorio en todas las trampas.
   Sonidos `WarnSound`/`FireSound`/`ResetSound` asignables por Luis en un Blueprint hijo.
 - **Pinchos** (6 por laberinto, en pasillos rectos lejos de la entrada): placa + destello rojo + 0,6 s → los pinchos suben y

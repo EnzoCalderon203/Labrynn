@@ -16,8 +16,8 @@ Orden de recorte: dardos → tiza → amuleto/Corazón → gas → botiquín.
 | 15:03–15:09 | Adelanto del viernes: **luz compartida** (batería, 1 linterna cada 2, brillo personal, HUD, Esc) | E | ✅ |
 | 15:09–15:16 | Adelanto del viernes: **reliquia + fase de escape + victoria + reinicio** | E | ✅ |
 | 15:16–15:25 | Adelanto del viernes: **rescate** (caído, ragdoll, levantar, desangrado, derrota) | E | ✅ |
-| 15:25–15:40 | Adelanto del viernes: **trampas 1 y 2** (pinchos con placa, foso) | E | ✅ **Hito 2 cumplido** |
-| 15:40–… | Adelanto del sábado: **Corazón del Laberinto** + **baterías** | E | 🔄 |
+| 15:25–15:31 | Adelanto del viernes: **trampas 1 y 2** (pinchos con placa, foso) | E | ✅ **Hito 2 cumplido** |
+| 15:31–… | Adelanto del sábado: **Corazón del Laberinto** + **baterías** | E | 🔄 |
 | 20:00–22:00 | Prueba real Enzo ↔ Luis por internet. Luis instala con `PROMPT_LUIS.md` | E+L | ⏳ |
 
 ## Viernes 13: Hito 2 (se puede jugar de principio a fin)

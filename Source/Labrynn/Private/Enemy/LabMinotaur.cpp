@@ -49,6 +49,7 @@ ALabMinotaur::ALabMinotaur()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 360.f, 0.f);
 	GetCharacterMovement()->MaxWalkSpeed = 300.f;
+	GetCharacterMovement()->MaxStepHeight = 85.f; // pasa escombros y vigas sin saltar
 	bUseControllerRotationYaw = false;
 }
 
@@ -155,6 +156,7 @@ void ALabMinotaur::RepathTo(const FIntPoint& RawTarget, bool bAvoidFire)
 			{
 				const FIntPoint N = C + D;
 				if (L.IsValidCell(N) && !Parent.Contains(N) && !L.HasWallBetween(C, D) && !Maze->GetPitCells().Contains(N)
+					&& !Maze->IsTunnelCell(N) // es demasiado grande para los túneles bajos
 					&& !(bUseFire && Fire.Contains(N)))
 				{
 					Parent.Add(N, C);

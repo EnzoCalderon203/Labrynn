@@ -109,6 +109,12 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
 	TObjectPtr<UInputAction> TalkAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
+	TObjectPtr<UInputAction> CrouchAction;
+
+	void CrouchPressed();
+	void CrouchReleased();
+
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	void MoveInput(const FInputActionValue& Value);

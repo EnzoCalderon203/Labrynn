@@ -1,9 +1,10 @@
-"""
+﻿"""
 Crea (o actualiza) las Input Actions propias de Labrynn y su Input Mapping Context.
   /Game/Labrynn/Core/Input/IA_Sprint    (bool)  -> Left Shift
   /Game/Labrynn/Core/Input/IA_Interact  (bool)  -> E
   /Game/Labrynn/Core/Input/IA_Lantern   (bool)  -> F
   /Game/Labrynn/Core/Input/IA_Talk      (bool)  -> V   (push-to-talk)
+  /Game/Labrynn/Core/Input/IA_Crouch    (bool)  -> C   (mantener para agacharse)
   /Game/Labrynn/Core/Input/IMC_Labrynn            (lo agrega ALabPlayerController con prioridad 1)
 Idempotente. Uso igual que setup_project.py (UnrealEditor-Cmd -run=pythonscript -script=...).
 """
@@ -15,6 +16,7 @@ ACTIONS = [
     ("IA_Interact", "E"),
     ("IA_Lantern", "F"),
     ("IA_Talk", "V"),
+    ("IA_Crouch", "C"),
 ]
 
 

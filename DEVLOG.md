@@ -358,6 +358,22 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   El host toma y suelta la reliquia con **E**, se para al lado del escondite y habla con **V**. El Minotauro llega y `¡atrapó a C_0!` (el host);
   **al cliente escondido nunca lo atacó**. ✅
 - Nota de diseño: un jugador caído que sigue apretando V sigue haciendo ruido. Queda así a propósito (pedir ayuda tiene riesgo).
+**19:06 · Diseño v2, punto 4: Obstáculos de movimiento + agacharse (C) ✅**
+- **Escombros y vigas** (`DA_Gameplay.RubbleCount = 8`, altura 70 cm) cruzando pasillos rectos: **solo se pasan saltando** (el salto llega a ~90 cm y cuesta 8 de stamina).
+  El Minotauro los pasa por paso alto (`MaxStepHeight 85`).
+- **Túneles bajos** (`LowTunnelCount = 5`, techo a 125 cm): **solo se pasan agachado**. **Al Minotauro le bloquean el paso** (su BFS los evita),
+  así que funcionan como refugio.
+- **Agacharse = C mantenida** (`IA_Crouch` + `IMC_Labrynn`), con el crouch replicado del CharacterMovement. Cápsula agachada de 110 cm a 220 cm/s
+  (más lento con la reliquia). Todo en `DA_Gameplay`.
+- Obstáculos deterministas en el laberinto (igual en todas las máquinas). Las trampas ya no caen en celdas con obstáculos.
+- **Validación al generar:** escombro 70 < salto 90 y túnel 125 entre agachado 110 y parado 192 → `OK`. Los obstáculos nunca cierran celdas de la grilla,
+  así que el camino entrada → centro → salida siempre se puede recorrer con salto o agachado. Si alguien cambia el DA a medidas imposibles, sale un error en el log.
+- **Prueba con input real:**
+  - Host frente a un escombro: con W queda bloqueado (`vel=0` durante 3 s) → **Espacio** → stamina 100 → 92 y pasa a la celda siguiente.
+  - Host frente a un túnel: parado queda bloqueado → **C** → `z=57 agachado=1` → cruza (8,9) → (8,10) → (8,11).
+  - **Cliente: lo mismo con C real**, con **0 correcciones de red ignoradas**. ✅
+- 🐞 **Aprendizaje:** el script de input no guardaba (`Cannot remove ... as it is read only`). Los `.uasset` son `lockable` en `.gitattributes`,
+  así que Git LFS los deja en **solo lectura** hasta bloquearlos. Solución: `git lfs lock` de los assets de input, que son de Enzo. Quedó en CLAUDE.md.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

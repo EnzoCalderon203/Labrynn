@@ -5,6 +5,8 @@
 #include "Player/LabCharacter.h"
 #include "Player/LabCharacterMovement.h"
 #include "Interact/LabLantern.h"
+#include "Core/LabGameState.h"
+#include "Maze/LabMaze.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/InputDeviceSubsystem.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
@@ -113,6 +115,9 @@ void ALabPlayerController::TickKeyScript()
 		if (const ALabCharacter* Ch = Cast<ALabCharacter>(GetPawn()))
 		{
 			const ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(Ch->GetCharacterMovement());
+			const ALabGameState* GS = GetWorld()->GetGameState<ALabGameState>();
+			const FIntPoint Cell = GS && GS->GetMaze() ? GS->GetMaze()->WorldToCell(Ch->GetActorLocation()) : FIntPoint(-1, -1);
+			UE_LOG(LogLabrynn, Log, TEXT("[Keys]   celda=%s z=%.0f agachado=%d"), *Cell.ToString(), Ch->GetActorLocation().Z, Ch->bIsCrouched ? 1 : 0);
 			UE_LOG(LogLabrynn, Log, TEXT("[Keys] t=%.0f vel=%.0f max=%.0f sprintPedido=%d stamina=%.0f%% farolEncendido=%d reliquia=%d farol=%d reencendiendo=%d"),
 				T, Ch->GetVelocity().Size2D(), CMC ? CMC->GetMaxSpeed() : 0.f, CMC && CMC->bWantsToSprint ? 1 : 0,
 				Ch->GetStamina01() * 100.f, Ch->HasLitLantern() ? 1 : 0, Ch->IsCarryingRelic() ? 1 : 0, Ch->GetHeldLantern() ? 1 : 0, Ch->GetHeldLantern() && Ch->GetHeldLantern()->IsRelighting() ? 1 : 0);

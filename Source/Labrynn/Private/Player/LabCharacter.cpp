@@ -41,6 +41,8 @@ ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	static ConstructorHelpers::FObjectFinder<UInputAction> IAInteract(TEXT("/Game/Labrynn/Core/Input/IA_Interact.IA_Interact"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> IALantern(TEXT("/Game/Labrynn/Core/Input/IA_Lantern.IA_Lantern"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> IATalk(TEXT("/Game/Labrynn/Core/Input/IA_Talk.IA_Talk"));
+	static ConstructorHelpers::FObjectFinder<UInputAction> IACrouch(TEXT("/Game/Labrynn/Core/Input/IA_Crouch.IA_Crouch"));
+	CrouchAction = IACrouch.Object;
 	SprintAction = IASprint.Object;
 	InteractAction = IAInteract.Object;
 	LanternAction = IALantern.Object;
@@ -91,6 +93,7 @@ ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
 	GetCharacterMovement()->MaxWalkSpeed = 450.f;
+	GetCharacterMovement()->NavAgentProps.bCanCrouch = true; // C: túneles bajos
 }
 
 void ALabCharacter::BeginPlay()
@@ -101,6 +104,7 @@ void ALabCharacter::BeginPlay()
 	MeshRelativeTransform = GetMesh()->GetRelativeTransform();
 	CameraRelativeTransform = FirstPersonCameraComponent->GetRelativeTransform();
 	StaminaServer = GetStaminaSettings()->MaxStamina;
+	GetCharacterMovement()->SetCrouchedHalfHeight(GetGameplaySettings()->CrouchedHalfHeight);
 	WoundsServer = 0.f;
 	SyncStaminaBytes();
 	PersonalGlow->SetIntensity(PersonalGlowIntensity);
@@ -534,6 +538,7 @@ void ALabCharacter::RestoreAll()
 	}
 	WoundsServer = 0.f;
 	StaminaServer = GetStaminaSettings()->MaxStamina;
+	GetCharacterMovement()->SetCrouchedHalfHeight(GetGameplaySettings()->CrouchedHalfHeight);
 	bExhausted = false;
 	ApplyExhaustedEffects();
 	SyncStaminaBytes();
@@ -842,6 +847,11 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		}
 		if (InteractAction) { EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &ALabCharacter::InteractInput); }
 		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::LanternInput); }
+		if (CrouchAction)
+		{
+			EIC->BindAction(CrouchAction, ETriggerEvent::Started, this, &ALabCharacter::CrouchPressed);
+			EIC->BindAction(CrouchAction, ETriggerEvent::Completed, this, &ALabCharacter::CrouchReleased);
+		}
 		if (TalkAction)
 		{
 			EIC->BindAction(TalkAction, ETriggerEvent::Started, this, &ALabCharacter::TalkPressed);
@@ -992,6 +1002,19 @@ void ALabCharacter::DoMove(float Right, float Forward)
 		AddMovementInput(GetActorRightVector(), Right);
 		AddMovementInput(GetActorForwardVector(), Forward);
 	}
+}
+
+void ALabCharacter::CrouchPressed()
+{
+	if (IsAliveAndFree() && !bHiding)
+	{
+		Crouch(); // replicado por el CharacterMovement
+	}
+}
+
+void ALabCharacter::CrouchReleased()
+{
+	UnCrouch();
 }
 
 bool ALabCharacter::CanJumpInternal_Implementation() const

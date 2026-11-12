@@ -103,6 +103,7 @@ Se mueve con BFS sobre `FLabMazeLayout` (sin NavMesh). Toda acción nueva que de
   - **Enzo:** `Source/`, `Config/`, `Content/Labrynn/Core/` (Blueprints hijos de gameplay, input, GameMode).
   - **Luis:** `Content/Labrynn/Maps/`, `Content/Labrynn/Audio/`, `Content/Labrynn/UI/`, `Content/Labrynn/Art/`.
   - Para tocar un asset ajeno: `git lfs lock <archivo>`, avisarle al otro y hacer `git lfs unlock` al terminar.
+- Los `.uasset` quedan **en solo lectura** (`lockable`) hasta hacer `git lfs lock <archivo>`. Los scripts de Python que modifican assets fallan con`n  `Cannot remove ... read only` si no se bloquean antes. Al terminar: `git lfs unlock`.
 - **Commits chicos y frecuentes**: siempre `git pull --rebase` antes de `git push`. Nunca hacer force-push a `main`.
 - Nunca se commitean `Binaries/`, `Intermediate/`, `Saved/`, `DerivedDataCache/` ni builds empaquetadas.
 

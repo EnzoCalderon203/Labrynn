@@ -33,6 +33,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 0, ClampMax = 40))
 	int32 LowTunnelCount = 5;
 
+	/** Altura de escombros y vigas (cm). Tiene que ser menor que el salto (se valida al generar). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 30))
+	float RubbleHeight = 70.f;
+
+	/** Altura libre de los túneles bajos (cm). Mayor que agachado y menor que parado (se valida). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 60))
+	float TunnelClearance = 125.f;
+
+	/** Media altura de la cápsula agachado (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 30))
+	float CrouchedHalfHeight = 55.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 50))
+	float CrouchSpeed = 220.f;
+
 	/** Bordes altos (pie de banco / dar la mano) en el camino entrada → centro → salida. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 0, ClampMax = 10))
 	int32 LedgesOnMainPath = 2;

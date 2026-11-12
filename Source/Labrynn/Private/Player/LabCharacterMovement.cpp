@@ -1,6 +1,8 @@
 #include "Player/LabCharacterMovement.h"
 
 #include "Player/LabCharacter.h"
+#include "Player/LabStaminaSettings.h"
+#include "Core/LabGameplaySettings.h"
 #include "GameFramework/Character.h"
 
 float ULabCharacterMovement::GetMaxSpeed() const
@@ -9,6 +11,12 @@ float ULabCharacterMovement::GetMaxSpeed() const
 	{
 		if (const ALabCharacter* Ch = Cast<ALabCharacter>(CharacterOwner))
 		{
+			if (IsCrouching())
+			{
+				// Agachado: lento (y más lento con la reliquia).
+				const float Crouch = Ch->GetGameplaySettings()->CrouchSpeed;
+				return Ch->IsCarryingRelic() ? Crouch * Ch->GetStaminaSettings()->RelicSpeedMultiplier : Crouch;
+			}
 			return Ch->GetDesiredMaxSpeed(bWantsToSprint);
 		}
 	}

@@ -253,6 +253,46 @@ void ALabGameMode::StartPlay()
 		}), At, false);
 	}
 
+	// -LabTeleportToObstacle=N -LabObstacleType=rubble|tunnel: el host queda en la celda anterior al obstáculo, mirándolo.
+	{
+		float At = 0.f;
+		FString Type = TEXT("rubble");
+		FParse::Value(FCommandLine::Get(), TEXT("LabObstacleType="), Type);
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabTeleportToObstacle="), At))
+		{
+			FTimerHandle TT;
+			GetWorldTimerManager().SetTimer(TT, FTimerDelegate::CreateWeakLambda(this, [this, Type]()
+			{
+				const ALabMaze* Maze = GetGameState<ALabGameState>()->GetMaze();
+				// -LabObstacleClient: acomoda al primer cliente en vez del host.
+				const bool bForClient = FParse::Param(FCommandLine::Get(), TEXT("LabObstacleClient"));
+				APlayerController* PC = nullptr;
+				for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+				{
+					if (It->Get() && It->Get()->IsLocalController() != bForClient) { PC = It->Get(); break; }
+				}
+				if (!Maze || !PC || !PC->GetPawn()) { return; }
+				const bool bTunnel = Type == TEXT("tunnel");
+				static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+				for (const TPair<FIntPoint, ALabMaze::EObstacle>& O : Maze->GetObstacles())
+				{
+					if ((O.Value == ALabMaze::EObstacle::Tunnel) != bTunnel) { continue; }
+					for (const FIntPoint& D : Dirs)
+					{
+						const FIntPoint Prev = O.Key - D;
+						if (!Maze->GetLayout().HasWallBetween(O.Key, FIntPoint(-D.X, -D.Y)) && Maze->GetLayout().IsValidCell(Prev) && !Maze->GetObstacles().Contains(Prev))
+						{
+							PC->GetPawn()->SetActorLocation(Maze->CellToWorld(Prev) + FVector(0.f, 0.f, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+							PC->ClientSetRotation(FRotator(0.f, FVector(D.X, D.Y, 0.f).Rotation().Yaw, 0.f));
+							UE_LOG(LogLabrynn, Log, TEXT("[Prueba] host frente a %s en %s (viene de %s)"), *Type, *O.Key.ToString(), *Prev.ToString());
+							return;
+						}
+					}
+				}
+			}), At, false);
+		}
+	}
+
 	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
 	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
 	static bool bAutoStaminaDone = false;
@@ -560,9 +600,9 @@ void ALabGameMode::SpawnTraps()
 	// Pinchos: en pasillos rectos, lejos de la entrada.
 	FRandomStream Rng(GS->GetMazeSeed() * 31 + 7);
 	TArray<FIntPoint> Cells = L.FindStraightCorridors();
-	Cells.RemoveAll([&L](const FIntPoint& C)
+	Cells.RemoveAll([&L, Maze](const FIntPoint& C)
 	{
-		return FMath::Abs(C.X - L.Entrance.X) + FMath::Abs(C.Y - L.Entrance.Y) <= 3;
+		return FMath::Abs(C.X - L.Entrance.X) + FMath::Abs(C.Y - L.Entrance.Y) <= 3 || Maze->GetObstacles().Contains(C);
 	});
 	for (int32 i = Cells.Num() - 1; i > 0; --i)
 	{

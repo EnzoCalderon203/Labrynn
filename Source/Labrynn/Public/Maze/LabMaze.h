@@ -156,8 +156,26 @@ public:
 
 	const ULabVisualSettings* GetVisualSettings() const;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze")
+	TObjectPtr<class ULabGameplaySettings> GameplaySettings;
+
+	/** Obstáculos de movimiento (deterministas). Rubble = saltar; Tunnel = agacharse (bloquea al Minotauro). */
+	enum class EObstacle : uint8 { Rubble, Beam, Tunnel };
+	const TMap<FIntPoint, EObstacle>& GetObstacles() const { return Obstacles; }
+	bool IsTunnelCell(const FIntPoint& C) const { const EObstacle* O = Obstacles.Find(C); return O && *O == EObstacle::Tunnel; }
+
+	/** ¿El camino entrada → centro → salida es transitable con salto/agachado? (se calcula en Build) */
+	bool IsMainPathValid() const { return bMainPathValid; }
+
 protected:
 	void BuildAmbience();
+	void BuildObstacles();
+
+	TMap<FIntPoint, EObstacle> Obstacles;
+	bool bMainPathValid = true;
+
+	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
+	TObjectPtr<UInstancedStaticMeshComponent> ObstacleMeshes;
 
 	/** Pared de la salida, separada para poder quitarla. */
 	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")

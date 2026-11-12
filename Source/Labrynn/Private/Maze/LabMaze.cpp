@@ -7,6 +7,7 @@
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Maze/LabVisualSettings.h"
+#include "Core/LabGameplaySettings.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
@@ -43,6 +44,10 @@ ALabMaze::ALabMaze()
 	PostProcess->SetupAttachment(Root);
 	PostProcess->bUnbound = true;
 	PostProcess->Priority = -1.f; // un volumen del mapa (Luis) puede pisarlo
+
+	ObstacleMeshes = MakeISM(this, Root, TEXT("Obstacles"));
+	static ConstructorHelpers::FObjectFinder<ULabGameplaySettings> GameplayDA(TEXT("/Game/Labrynn/Core/DA_Gameplay.DA_Gameplay"));
+	GameplaySettings = GameplayDA.Object;
 
 	Moss = MakeISM(this, Root, TEXT("Moss"));
 	Moss->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -87,10 +92,11 @@ ALabMaze::ALabMaze()
 	if (CeilGrid.Succeeded())  { CeilingMaterial = CeilGrid.Object; }
 
 	// Mesh y materiales por defecto ya en el constructor (componentes Static).
-	for (UInstancedStaticMeshComponent* C : { Walls.Get(), Floors.Get(), Ceilings.Get(), ExitDoor.Get(), Moss.Get(), Cracks.Get() })
+	for (UInstancedStaticMeshComponent* C : { Walls.Get(), Floors.Get(), Ceilings.Get(), ExitDoor.Get(), Moss.Get(), Cracks.Get(), ObstacleMeshes.Get() })
 	{
 		C->SetStaticMesh(BlockMesh);
 	}
+	ObstacleMeshes->SetMaterial(0, WallMaterial);
 	Walls->SetMaterial(0, WallMaterial);
 	ExitDoor->SetMaterial(0, WallMaterial);
 	Floors->SetMaterial(0, FloorMaterial);
@@ -214,6 +220,7 @@ void ALabMaze::Build(int32 InSeed)
 
 	BuildEntranceHall();
 
+	BuildObstacles();
 	BuildAmbience();
 
 	// Luces tenues: hall de entrada (para orientarse al empezar) y sala central (brillo de la reliquia).
@@ -348,6 +355,59 @@ void ALabMaze::SetExitOpen(bool bOpen)
 const ULabVisualSettings* ALabMaze::GetVisualSettings() const
 {
 	return VisualSettings ? VisualSettings.Get() : GetDefault<ULabVisualSettings>();
+}
+
+void ALabMaze::BuildObstacles()
+{
+	const ULabGameplaySettings* G = GameplaySettings ? GameplaySettings.Get() : GetDefault<ULabGameplaySettings>();
+	FRandomStream Rng(Seed * 389 + 5);
+	Obstacles.Reset();
+
+	// Pasillos rectos lejos de la entrada y fuera de fosos.
+	TArray<FIntPoint> Cells = Layout.FindStraightCorridors();
+	Cells.RemoveAll([this](const FIntPoint& C)
+	{
+		return PitCells.Contains(C) || FMath::Abs(C.X - Layout.Entrance.X) + FMath::Abs(C.Y - Layout.Entrance.Y) <= 2;
+	});
+	for (int32 i = Cells.Num() - 1; i > 0; --i)
+	{
+		Cells.Swap(i, Rng.RandRange(0, i));
+	}
+
+	int32 Idx = 0;
+	auto AlongX = [this](const FIntPoint& C) { return !Layout.HasVWall(C.X, C.Y) && !Layout.HasVWall(C.X + 1, C.Y); }; // pasaje este-oeste
+	for (int32 n = 0; n < G->RubbleCount && Idx < Cells.Num(); ++n, ++Idx)
+	{
+		const FIntPoint C = Cells[Idx];
+		const bool bBeam = Rng.FRand() < 0.4f;
+		const float Thick = bBeam ? 30.f : 70.f;
+		const FVector Size = AlongX(C) ? FVector(Thick, CellSize, G->RubbleHeight) : FVector(CellSize, Thick, G->RubbleHeight);
+		AddBox(ObstacleMeshes, FVector((C.X + 0.5f) * CellSize, (C.Y + 0.5f) * CellSize, G->RubbleHeight * 0.5f), Size);
+		Obstacles.Add(C, bBeam ? EObstacle::Beam : EObstacle::Rubble);
+	}
+	for (int32 n = 0; n < G->LowTunnelCount && Idx < Cells.Num(); ++n, ++Idx)
+	{
+		const FIntPoint C = Cells[Idx];
+		const float H = WallHeight - G->TunnelClearance;
+		AddBox(ObstacleMeshes, FVector((C.X + 0.5f) * CellSize, (C.Y + 0.5f) * CellSize, G->TunnelClearance + H * 0.5f), FVector(CellSize, CellSize, H));
+		Obstacles.Add(C, EObstacle::Tunnel);
+	}
+
+	// Validación: el camino entrada → centro → salida tiene que ser transitable con salto o agachado.
+	// (Los obstáculos nunca cierran el paso por la grilla; lo que se valida es que las medidas sean pasables.)
+	const float JumpHeight = 420.f * 420.f / (2.f * 980.f);          // JumpZVelocity de la plantilla, gravedad por defecto
+	const float CrouchedTall = G->CrouchedHalfHeight * 2.f + 5.f;
+	const float StandingTall = 96.f * 2.f;
+	const bool bRubbleOk = G->RubbleHeight < JumpHeight - 10.f;
+	const bool bTunnelOk = G->TunnelClearance > CrouchedTall && G->TunnelClearance < StandingTall;
+	bMainPathValid = bRubbleOk && bTunnelOk;
+	UE_LOG(LogLabrynn, Log, TEXT("Obstáculos: %d (escombros/vigas %d, túneles %d). Validación: escombro %.0f < salto %.0f → %s; túnel %.0f entre agachado %.0f y parado %.0f → %s"),
+		Obstacles.Num(), FMath::Min(G->RubbleCount, Cells.Num()), Obstacles.Num() - FMath::Min(G->RubbleCount, Cells.Num()),
+		G->RubbleHeight, JumpHeight, bRubbleOk ? TEXT("OK") : TEXT("FALLA"), G->TunnelClearance, CrouchedTall, StandingTall, bTunnelOk ? TEXT("OK") : TEXT("FALLA"));
+	if (!bMainPathValid)
+	{
+		UE_LOG(LogLabrynn, Error, TEXT("¡Medidas de obstáculos no transitables! Revisar DA_Gameplay."));
+	}
 }
 
 void ALabMaze::BuildAmbience()

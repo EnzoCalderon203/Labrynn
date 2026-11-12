@@ -304,6 +304,7 @@ protected:
 
 	void TickVoice(float DeltaSeconds);
 	float NextVoiceNoise = 0.f;
+	FString LastVoiceFxLabel;
 
 	/** Brillo personal tenue (todos lo tienen): permite ver la silueta de los compañeros cercanos. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

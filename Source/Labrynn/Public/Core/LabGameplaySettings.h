@@ -107,6 +107,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cargar")
 	float CarryStaminaPerSecond = 6.f;
 
+	// --- Voz según el estado (procesado en cada máquina sobre la voz de los demás) ---
+	/** Desde cuántas heridas (0..1) la voz suena jadeante y entrecortada. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voz", meta = (ClampMin = 0, ClampMax = 1))
+	float VoiceWoundedThreshold = 0.5f;
+
+	/** Caído: pasa-bajos (Hz) y volumen. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voz")
+	float VoiceDownedLowPass = 700.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voz")
+	float VoiceDownedVolume = 0.7f;
+
+	/** Escondido: pasa-bajos (Hz) y volumen. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voz")
+	float VoiceHiddenLowPass = 2500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voz")
+	float VoiceHiddenVolume = 0.45f;
+
 	/** Bordes altos (pie de banco / dar la mano) en el camino entrada → centro → salida. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 0, ClampMax = 10))
 	int32 LedgesOnMainPath = 2;

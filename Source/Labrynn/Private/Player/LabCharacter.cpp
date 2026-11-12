@@ -26,6 +26,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "InputAction.h"
 #include "Net/VoiceConfig.h"
+#include "Player/LabVoipTalker.h"
 #include "Maze/LabVisualSettings.h"
 #include "Core/LabGameplaySettings.h"
 #include "Interact/LabHidingSpot.h"
@@ -342,12 +343,61 @@ void ALabCharacter::TickVoice(float DeltaSeconds)
 			A.OcclusionInterpolationTime = 0.15f;
 			A.OcclusionTraceChannel = ECC_Visibility;
 		}
-		VoiceTalker = UVOIPTalker::CreateTalkerForPlayer(GetPlayerState());
+		// Talker propio: guarda el componente de audio de la voz para procesarla según el estado.
+		ULabVoipTalker* LabTalker = NewObject<ULabVoipTalker>(GetPlayerState());
+		LabTalker->RegisterWithPlayerState(GetPlayerState());
+		VoiceTalker = LabTalker;
 		if (VoiceTalker)
 		{
 			VoiceTalker->Settings.ComponentToAttachTo = GetCapsuleComponent();
 			VoiceTalker->Settings.AttenuationSettings = VoiceAttenuation;
 			UE_LOG(LogLabrynn, Log, TEXT("Voz: talker 3D creado para %s en %s"), *GetName(), GetNetMode() == NM_Client ? TEXT("cliente") : TEXT("servidor"));
+		}
+	}
+
+	// Voz según el estado (en cada máquina, sobre la voz de este personaje): filtro, volumen y pitch.
+	if (VoiceTalker && !IsLocallyControlled())
+	{
+		const ULabGameplaySettings* G = GetGameplaySettings();
+		const float T = GetWorld()->GetTimeSeconds();
+		float Vol = 1.f, LowPass = 20000.f, Pitch = 1.f;
+		const TCHAR* Label = TEXT("normal");
+		if (!IsAliveAndFree() && !CarriedBy)
+		{
+			Label = TEXT("ahogada (caído)"); LowPass = G->VoiceDownedLowPass; Vol = G->VoiceDownedVolume;
+		}
+		else if (CarriedBy)
+		{
+			Label = TEXT("rebota (cargado)"); LowPass = G->VoiceDownedLowPass * 1.6f;
+			Vol = 0.7f + 0.3f * FMath::Abs(FMath::Sin(T * PI * 2.2f)); Pitch = 1.f + 0.03f * FMath::Sin(T * 13.8f);
+		}
+		else if (bHiding)
+		{
+			Label = TEXT("baja (escondido)"); LowPass = G->VoiceHiddenLowPass; Vol = G->VoiceHiddenVolume;
+		}
+		else if (bExhausted || GetVelocity().Size2D() > 550.f)
+		{
+			Label = TEXT("agitada (corriendo / sin aire)"); Vol = 0.85f + 0.15f * FMath::Sin(T * 14.f); Pitch = 1.03f;
+		}
+		if (IsAliveAndFree() && GetWounds01() >= G->VoiceWoundedThreshold)
+		{
+			// Herido: jadeante y entrecortada (temblor + cortes breves).
+			Label = (FCString::Strcmp(Label, TEXT("normal")) == 0) ? TEXT("entrecortada (herido)") : Label;
+			Vol *= 0.75f + 0.25f * FMath::Sin(T * 38.f);
+			if (FMath::Frac(T * 3.1f) < 0.12f) { Vol *= 0.2f; }
+		}
+		if (UAudioComponent* VC = Cast<ULabVoipTalker>(VoiceTalker)->GetVoiceComponent())
+		{
+			VC->SetVolumeMultiplier(Vol);
+			VC->SetLowPassFilterEnabled(LowPass < 19000.f);
+			VC->SetLowPassFilterFrequency(LowPass);
+			VC->SetPitchMultiplier(Pitch);
+		}
+		if (FCString::Strcmp(Label, *LastVoiceFxLabel) != 0)
+		{
+			LastVoiceFxLabel = Label;
+			UE_LOG(LogLabrynn, Log, TEXT("Voz[%s] en %s: %s (filtro %.0f Hz, vol %.2f)"), *GetName(),
+				GetNetMode() == NM_Client ? TEXT("cliente") : TEXT("servidor"), Label, LowPass, Vol);
 		}
 	}
 

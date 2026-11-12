@@ -424,6 +424,19 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - **Cliente: E + click** → `C_1 juntó` / `lanzó` (por RPC).
   - Botella: un solo golpe (ruido 1,0) y se rompe. ✅
 - Nota de prueba: si cargás la reliquia, la E apunta primero a la reliquia (la tenés en los brazos) y no al objeto del piso.
+**19:37 · Diseño v2, punto 8: Voz según tu estado ✅ (lógica; falta escucharlo con micrófono)**
+- `ULabVoipTalker` (subclase de `UVOIPTalker`) guarda el `UAudioComponent` de la voz al empezar a hablar. En cada máquina, el personaje
+  procesa la voz de los demás según su estado replicado: **volumen, pasa-bajos y pitch**, sin plugins.
+  - **Herido** (heridas ≥ 50 %): temblor de volumen y cortes breves (entrecortada).
+  - **Corriendo o sin aire:** modulación de respiración y pitch levemente más alto (el loop de respiración del jadeo ya se mezcla).
+  - **Caído:** ahogada (pasa-bajos a 700 Hz, ×0,7).
+  - **Escondido:** baja (pasa-bajos a 2500 Hz, ×0,45).
+  - **Cargado al hombro:** el volumen "rebota" con los pasos.
+  - Valores en `DA_Gameplay` (categoría Voz).
+- **Prueba con input real** (W+Shift del cliente, E mantenida del host, caída y heridas preparadas):
+  - Servidor sobre la voz del cliente: `normal → agitada → normal → ahogada (700 Hz) → rebota (cargado) → ahogada`.
+  - Cliente sobre la voz del host herido: `entrecortada`. ✅
+- ⚠️ **No se puede escuchar en pruebas automáticas** (no hay micrófono). Queda en PENDIENTES para probar con Luis.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

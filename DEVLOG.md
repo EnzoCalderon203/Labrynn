@@ -293,6 +293,18 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - Corriente de aire: `la corriente de aire apagó la llama`; F adentro no hace nada; F después reenciende en 3 s. ✅
   - 0 crashes de GPU.
 - Pendiente opcional: antorchas tenues en las paredes.
+**18:12 · Punto 2: Chat de voz por proximidad ✅ (lógica verificada; falta oír el audio real)**
+- **V = push-to-talk** (`IA_Talk`): llama al `StartTalking`/`StopTalking` nativo de Unreal (OnlineVoice: Steam o NULL) y replica
+  `bTalking`. Config: `bHasVoiceEnabled`, `[Voice] bEnabled` y `bRequiresPushToTalk`.
+- **Voz 3D:** en cada máquina se crea un `UVOIPTalker` por compañero, pegado a su cápsula, con atenuación esférica
+  (pleno hasta 1,5 m, se apaga a ~20 m) y **oclusión por paredes** (pasa-bajos a 900 Hz, volumen ×0,35).
+- **La voz hace ruido:** mientras alguien habla, el servidor emite cada 0,4 s `ReportNoiseEvent` (tag `Voz`) con volumen = nivel medido
+  de la voz (`GetVoiceLevel`; mínimo 0,3) y alcance proporcional. Para la voz del propio host no hay medición local y se usa 0,6.
+- HUD: "HABLANDO [V]" propio y "( habla )" sobre compañeros cercanos.
+- **Prueba con input real (`-LabKeys` V)** en host y cliente: `empieza a hablar` / `deja de hablar`, ruido de voz en el servidor para
+  ambos (la V del cliente llega al servidor), y talkers 3D creados en servidor y cliente. ✅
+- ⚠️ **Sin verificar:** que el audio del micrófono se transmita y se escuche bien. Las pruebas automáticas no tienen micrófono.
+  Lo tienen que probar Enzo y Luis hablando, idealmente por Steam (está en PENDIENTES).
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

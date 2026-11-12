@@ -62,6 +62,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|Light")
 	bool HasLitLantern() const;
 
+	UFUNCTION(BlueprintPure, Category = "Lab|Voice")
+	bool IsTalking() const { return bTalking; }
+
+	/** Último volumen de ruido de voz emitido (servidor; para pruebas/depuración). */
+	float LastVoiceNoiseLevel = 0.f;
+
 protected:
 	// --- Input (mismos nombres que la plantilla: el Blueprint ya trae los assets asignados) ---
 	UPROPERTY(EditAnywhere, Category = "Input")
@@ -118,6 +124,33 @@ protected:
 	/** Hasta qué hora del servidor está en una corriente de aire (no se puede encender). */
 	UPROPERTY(Replicated)
 	float GasUntilServerTime = 0.f;
+
+	// --- Voz por proximidad (V = push-to-talk) ---
+	void TalkPressed();
+	void TalkReleased();
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetTalking(bool bTalk);
+
+	/** Está hablando (replicado: HUD y ruido para el Minotauro). */
+	UPROPERTY(Replicated)
+	bool bTalking = false;
+
+	/** Voz 3D de ESTE personaje en las otras máquinas (se crea cuando hay PlayerState). */
+	UPROPERTY(Transient)
+	TObjectPtr<class UVOIPTalker> VoiceTalker;
+
+	/** Alcance de la voz (cm); más allá no se oye. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Voice")
+	float VoiceRange = 2000.f;
+
+	/** Alcance del ruido de la voz para la IA, a volumen 1 (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Voice")
+	float VoiceNoiseRange = 2500.f;
+
+	void TickVoice(float DeltaSeconds);
+	float NextVoiceNoise = 0.f;
+
 	/** Brillo personal tenue (todos lo tienen): permite ver la silueta de los compañeros cercanos. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<class UPointLightComponent> PersonalGlow;

@@ -120,6 +120,23 @@ void ALabHUD::DrawHUD()
 		}
 	}
 
+	// Voz: indicador propio y sobre los compañeros que hablan (si están al alcance de la voz).
+	if (Ch->IsTalking())
+	{
+		DrawText(TEXT("HABLANDO [V]"), FLinearColor(0.5f, 1.f, 0.6f), Canvas->ClipX - 170.f, 30.f, Font, 1.2f);
+	}
+	for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+	{
+		if (*It != Ch && It->IsTalking() && FVector::Dist(It->GetActorLocation(), Ch->GetActorLocation()) < 2000.f)
+		{
+			const FVector P = Project(It->GetActorLocation() + FVector(0.f, 0.f, 110.f));
+			if (P.Z > 0.f)
+			{
+				DrawText(TEXT("( habla )"), FLinearColor(0.6f, 1.f, 0.7f), P.X - 30.f, P.Y, Font, 1.f);
+			}
+		}
+	}
+
 	// Marcadores de compañeros caídos (se ven a través de las paredes: así se coordina el rescate).
 	for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
 	{

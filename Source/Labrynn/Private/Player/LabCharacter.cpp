@@ -25,6 +25,8 @@
 #include "Components/AudioComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "InputAction.h"
+#include "Net/VoiceConfig.h"
+#include "Sound/SoundAttenuation.h"
 #include "Labrynn.h"
 
 ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
@@ -116,6 +118,80 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, DownedAtServerTime);
 	DOREPLIFETIME(ALabCharacter, DownImpulse);
 	DOREPLIFETIME(ALabCharacter, GasUntilServerTime);
+	DOREPLIFETIME(ALabCharacter, bTalking);
+}
+
+// ---------------------------------------------------------------- Voz por proximidad
+
+void ALabCharacter::TalkPressed()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		PC->StartTalking(); // push-to-talk nativo (OnlineVoice: Steam o NULL)
+	}
+	ServerSetTalking(true);
+	UE_LOG(LogLabrynn, Log, TEXT("Voz: %s empieza a hablar (V)"), *GetName());
+}
+
+void ALabCharacter::TalkReleased()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		PC->StopTalking();
+	}
+	ServerSetTalking(false);
+	UE_LOG(LogLabrynn, Log, TEXT("Voz: %s deja de hablar"), *GetName());
+}
+
+void ALabCharacter::ServerSetTalking_Implementation(bool bTalk)
+{
+	bTalking = bTalk && IsAliveAndFree();
+}
+
+void ALabCharacter::TickVoice(float DeltaSeconds)
+{
+	// En cada máquina, la voz de los OTROS suena desde su cuerpo, con atenuación y oclusión por paredes.
+	if (!VoiceTalker && !IsLocallyControlled() && GetPlayerState() && GetNetMode() != NM_DedicatedServer)
+	{
+		static TObjectPtr<USoundAttenuation> VoiceAttenuation;
+		if (!VoiceAttenuation)
+		{
+			VoiceAttenuation = NewObject<USoundAttenuation>(GetTransientPackage(), TEXT("LabVoiceAttenuation"));
+			VoiceAttenuation->AddToRoot();
+			FSoundAttenuationSettings& A = VoiceAttenuation->Attenuation;
+			A.bAttenuate = true;
+			A.bSpatialize = true;
+			A.AttenuationShape = EAttenuationShape::Sphere;
+			A.AttenuationShapeExtents = FVector(150.f);   // radio a volumen pleno
+			A.FalloffDistance = VoiceRange;
+			A.bEnableOcclusion = true;                   // paredes: suena apagada y más baja
+			A.OcclusionLowPassFilterFrequency = 900.f;
+			A.OcclusionVolumeAttenuation = 0.35f;
+			A.OcclusionInterpolationTime = 0.15f;
+			A.OcclusionTraceChannel = ECC_Visibility;
+		}
+		VoiceTalker = UVOIPTalker::CreateTalkerForPlayer(GetPlayerState());
+		if (VoiceTalker)
+		{
+			VoiceTalker->Settings.ComponentToAttachTo = GetCapsuleComponent();
+			VoiceTalker->Settings.AttenuationSettings = VoiceAttenuation;
+			UE_LOG(LogLabrynn, Log, TEXT("Voz: talker 3D creado para %s en %s"), *GetName(), GetNetMode() == NM_Client ? TEXT("cliente") : TEXT("servidor"));
+		}
+	}
+
+	// Servidor: hablar hace ruido (lo puede oír una IA). Volumen ≈ nivel de la voz (si se conoce) o medio.
+	if (HasAuthority() && bTalking && GetWorld()->GetTimeSeconds() >= NextVoiceNoise)
+	{
+		NextVoiceNoise = GetWorld()->GetTimeSeconds() + 0.4f;
+		float Level = 0.6f; // voz del host (sin medición local) o sin datos todavía
+		if (VoiceTalker)
+		{
+			Level = FMath::Max(0.3f, FMath::Clamp(VoiceTalker->GetVoiceLevel() * 4.f, 0.f, 1.f));
+		}
+		UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), Level, this, VoiceNoiseRange * Level, FName("Voz"));
+		UE_LOG(LogLabrynn, Log, TEXT("Voz: ruido %.2f de %s (alcance %.0f)"), Level, *GetName(), VoiceNoiseRange * Level);
+		LastVoiceNoiseLevel = Level;
+	}
 }
 
 bool ALabCharacter::IsInGas() const
@@ -556,6 +632,7 @@ void ALabCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	TickStamina(DeltaSeconds);
+	TickVoice(DeltaSeconds);
 
 	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
 	if (HasAuthority() && LifeState == ELabLifeState::Downed)
@@ -606,6 +683,11 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		}
 		if (InteractAction) { EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &ALabCharacter::InteractInput); }
 		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::LanternInput); }
+		if (TalkAction)
+		{
+			EIC->BindAction(TalkAction, ETriggerEvent::Started, this, &ALabCharacter::TalkPressed);
+			EIC->BindAction(TalkAction, ETriggerEvent::Completed, this, &ALabCharacter::TalkReleased);
+		}
 		if (!SprintAction || !InteractAction || !LanternAction)
 		{
 			UE_LOG(LogLabrynn, Error, TEXT("Faltan Input Actions de /Game/Labrynn/Core/Input (correr Scripts/create_input_assets.py)"));

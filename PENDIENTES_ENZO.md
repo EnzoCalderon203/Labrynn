@@ -1,4 +1,4 @@
-# Pendientes para Enzo (cosas que Claude no puede o no debe hacer solo)
+﻿# Pendientes para Enzo (cosas que Claude no puede o no debe hacer solo)
 
 Ordenados por urgencia. Tachá o borrá cada uno cuando lo hagas.
 
@@ -53,6 +53,11 @@ o por `UnrealEditor`, ahí sí hay que poner **Permitir**. Si no, nadie se va a 
 ## 2d. 🟢 Probar el zip en la PC de Luis
 `Packaged\LabrynnTeam_Labrynn.zip` (291 MB) se genera con `powershell -File Scripts\package.ps1`.
 Antes del domingo conviene descomprimirlo en otra PC (la de Luis) para confirmar que arranca sin tener Unreal instalado.
+
+## 2e. 🟠 Probar el chat de voz con Luis
+En la prueba por Steam (2b): mantener **V** y hablar. Verificar que (1) se escucha, (2) baja con la distancia,
+(3) suena apagado detrás de una pared. Si no se escucha nada, pasarle a Claude `Saved\Logs\Labrynn.log` de las dos PCs.
+Windows tiene que tener el micrófono permitido para apps de escritorio.
 
 ## 3. 🟡 Joystick con drift
 Hay un **"Wireless Controller" Bluetooth** (joystick de PlayStation) conectado. En una prueba, el personaje del host

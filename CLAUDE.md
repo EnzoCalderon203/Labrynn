@@ -70,8 +70,8 @@ música adaptativa y arte custom elaborado.
 ## Controles (Enhanced Input: IMC_Default de la plantilla + IMC_Labrynn propio)
 WASD moverse · mouse mirar · Espacio saltar (gasta stamina) · **Shift correr** · **C agacharse** (túneles bajos; agachado frente a un borde = pie de banco)
 · F apagar/reencender el farol · **E interactuar** (tomar/pasar/soltar, levantar a un caído; **mantener E sobre un caído = cargarlo al hombro**, E otra vez lo suelta;
-agarrar la mano de quien la extiende) · **click izq. mantenido = apuntar** piedra/botella (arco), soltar = lanzar · **V hablar** (push-to-talk, proximidad) · Esc menú.
-Assets de input: `Scripts/create_input_assets.py` (IA_Sprint, IA_Interact, IA_Lantern, IA_Talk, IA_Crouch, IA_Throw en IMC_Labrynn).
+agarrar la mano de quien la extiende) · **click izq. mantenido = apuntar** piedra/botella (arco), soltar = lanzar · **V hablar** (push-to-talk, proximidad) · **rueda arriba = ping** (marca lo que mirás, 5 s) · Esc menú.
+Assets de input: `Scripts/create_input_assets.py` (IA_Sprint, IA_Interact, IA_Lantern, IA_Talk, IA_Crouch, IA_Throw, IA_Ping en IMC_Labrynn).
 
 ## Mecánicas del diseño v2 (todas en C++, valores en `DA_Gameplay` / `DA_Visuals` / `DA_Minotaur`)
 - **Visibilidad mínima sin farol:** adaptación a la oscuridad (la exposición sube en 10 s), musgo y grietas emisivas, haces de luna y un brillo personal tenue.
@@ -83,6 +83,7 @@ Assets de input: `Scripts/create_input_assets.py` (IA_Sprint, IA_Interact, IA_La
 - **Cargar a un caído:** lento (×0,5), gasta stamina, sin farol; si el que carga cae, caen los dos.
 - **Lanzables** (`ALabThrowable`): máx. 3; la botella hace ruido fuerte y se rompe, la piedra rebota. El Minotauro va al ruido y los objetos activan trampas a distancia.
 - **Voz procesada por estado** (`ULabVoipTalker` + `TickVoice`): herido entrecortada, corriendo agitada, caído ahogada, escondido baja, cargado rebota.
+- **Premios graciosos** (`ALabPlayerState::Stats` → `ALabGameState::ComputeAwards` al ganar/perder) y **ping** (`ALabGameState::Pings`, HUD).
 
 ## Stamina / heridas (estilo Peak)
 Una sola barra; las heridas bloquean la parte de arriba; si la llenan → caído. Valores en `/Game/Labrynn/Core/DA_Stamina`.

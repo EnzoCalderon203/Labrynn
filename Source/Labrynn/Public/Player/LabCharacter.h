@@ -79,6 +79,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|Voice")
 	bool IsTalking() const { return bTalking; }
 
+	/** Solo servidor: estadísticas de la ronda en el PlayerState (premios). nullptr si no hay. */
+	struct FLabStats* GetStatsServer() const;
+
 	// --- Lanzables (piedras y botellas) ---
 	bool CanCarryMoreThrowables() const;
 	/** Solo servidor. */
@@ -195,6 +198,17 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
 	TObjectPtr<UInputAction> ThrowAction;
+
+	// Ping: la rueda del mouse marca el punto que mirás (lo ven todos unos segundos).
+	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
+	TObjectPtr<UInputAction> PingAction;
+
+	void PingPressed();
+
+	UFUNCTION(Server, Reliable)
+	void ServerPing(FVector Location);
+
+	float LastPingServerTime = -100.f;
 
 	void ThrowPressed();
 	void ThrowReleased();

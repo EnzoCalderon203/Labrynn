@@ -126,6 +126,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voz")
 	float VoiceHiddenVolume = 0.45f;
 
+	// --- Ping (rueda del mouse) ---
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ping")
+	float PingRange = 3000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ping")
+	float PingCooldown = 1.f;
+
+	/** Segundos que se ve la marca. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ping")
+	float PingDuration = 5.f;
+
 	/** Bordes altos (pie de banco / dar la mano) en el camino entrada → centro → salida. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 0, ClampMax = 10))
 	int32 LedgesOnMainPath = 2;

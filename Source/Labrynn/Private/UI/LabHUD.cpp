@@ -1,4 +1,5 @@
 ﻿#include "UI/LabHUD.h"
+#include "Core/LabGameplaySettings.h"
 
 #include "Player/LabCharacter.h"
 #include "Interact/LabLantern.h"
@@ -247,6 +248,45 @@ void ALabHUD::DrawHUD()
 			float W, H;
 			GetTextSize(Msg, W, H, Font, Scale);
 			DrawText(Msg, Col, (Canvas->ClipX - W) * 0.5f, Canvas->ClipY * 0.2f, Font, Scale);
+		}
+
+		// Pings: rombo + nombre + distancia, se desvanece.
+		const float PingLife = Ch->GetGameplaySettings()->PingDuration;
+		for (const FLabPing& P : GS->GetPings())
+		{
+			const float Age = GS->GetServerWorldTimeSeconds() - P.ServerTime;
+			if (Age < 0.f || Age > PingLife) { continue; }
+			const FVector S = Project(P.Location);
+			if (S.Z <= 0.f) { continue; }
+			const float A = FMath::Clamp((PingLife - Age) / 1.f, 0.f, 1.f);
+			const float Pulse = 10.f + 4.f * FMath::Sin(Age * 8.f);
+			const FLinearColor PC(1.f, 0.8f, 0.2f, A);
+			DrawLine(S.X, S.Y - Pulse, S.X + Pulse, S.Y, PC, 2.f);
+			DrawLine(S.X + Pulse, S.Y, S.X, S.Y + Pulse, PC, 2.f);
+			DrawLine(S.X, S.Y + Pulse, S.X - Pulse, S.Y, PC, 2.f);
+			DrawLine(S.X - Pulse, S.Y, S.X, S.Y - Pulse, PC, 2.f);
+			const FString Label = FString::Printf(TEXT("%s · %.0f m"), *P.Player, FVector::Dist(P.Location, Ch->GetActorLocation()) / 100.f);
+			float W, H;
+			GetTextSize(Label, W, H, Font, 0.9f);
+			DrawText(Label, PC, S.X - W * 0.5f, S.Y + 16.f, Font, 0.9f);
+		}
+
+		// Premios del final de ronda.
+		if ((GS->GetPhase() == ELabPhase::Won || GS->GetPhase() == ELabPhase::Lost) && GS->GetAwards().Num() > 0)
+		{
+			float Y = Canvas->ClipY * 0.32f;
+			const FString Head = TEXT("— PREMIOS —");
+			float W, H;
+			GetTextSize(Head, W, H, Font, 1.6f);
+			DrawText(Head, FLinearColor(1.f, 0.85f, 0.4f), (Canvas->ClipX - W) * 0.5f, Y, Font, 1.6f);
+			Y += H + 12.f;
+			for (const FLabAward& Aw : GS->GetAwards())
+			{
+				const FString Line = FString::Printf(TEXT("%s:  %s  (%s)"), *Aw.Title, *Aw.Player, *Aw.Detail);
+				GetTextSize(Line, W, H, Font, 1.2f);
+				DrawText(Line, FLinearColor(0.95f, 0.92f, 0.85f), (Canvas->ClipX - W) * 0.5f, Y, Font, 1.2f);
+				Y += H + 6.f;
+			}
 		}
 	}
 }

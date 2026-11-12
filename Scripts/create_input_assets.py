@@ -18,6 +18,7 @@ ACTIONS = [
     ("IA_Talk", "V"),
     ("IA_Crouch", "C"),
     ("IA_Throw", "LeftMouseButton"),
+    ("IA_Ping", "MouseScrollUp"),
 ]
 
 

@@ -82,4 +82,4 @@ Mismo procedimiento: compilar, probar en LAN con input real (host + cliente), co
 | 6 | Cargar a un caído al hombro | ✅ (pose sin verificar con captura) |
 | 7 | Piedras y botellas (arco, ruido, activan trampas) | ✅ |
 | 8 | Voz procesada por estado | ✅ lógica · falta escucharlo con micrófono (Luis, PENDIENTES 2f) |
-| 9 | Si sobra tiempo: premios graciosos + ping con la rueda | ⏳ |
+| 9 | Premios graciosos al final + ping con la rueda del mouse | ✅ |

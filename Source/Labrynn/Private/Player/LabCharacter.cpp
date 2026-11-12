@@ -27,6 +27,7 @@
 #include "InputAction.h"
 #include "Net/VoiceConfig.h"
 #include "Player/LabVoipTalker.h"
+#include "Core/LabPlayerState.h"
 #include "Maze/LabVisualSettings.h"
 #include "Core/LabGameplaySettings.h"
 #include "Interact/LabHidingSpot.h"
@@ -46,6 +47,8 @@ ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	CrouchAction = IACrouch.Object;
 	static ConstructorHelpers::FObjectFinder<UInputAction> IAThrow(TEXT("/Game/Labrynn/Core/Input/IA_Throw.IA_Throw"));
 	ThrowAction = IAThrow.Object;
+	static ConstructorHelpers::FObjectFinder<UInputAction> IAPing(TEXT("/Game/Labrynn/Core/Input/IA_Ping.IA_Ping"));
+	PingAction = IAPing.Object;
 	SprintAction = IASprint.Object;
 	InteractAction = IAInteract.Object;
 	LanternAction = IALantern.Object;
@@ -415,6 +418,7 @@ void ALabCharacter::TickVoice(float DeltaSeconds)
 			Level *= GetGameplaySettings()->HiddenVoiceNoiseMultiplier; // escondido: la voz hace menos ruido
 		}
 		UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), Level, this, VoiceNoiseRange * Level, FName("Voz"));
+		if (FLabStats* St = GetStatsServer()) { St->VoiceNoises++; }
 		UE_LOG(LogLabrynn, Log, TEXT("Voz: ruido %.2f de %s (alcance %.0f)"), Level, *GetName(), VoiceNoiseRange * Level);
 		LastVoiceNoiseLevel = Level;
 	}
@@ -553,11 +557,17 @@ void ALabCharacter::TickStamina(float DeltaSeconds)
 	if (CarriedBody)
 	{
 		SpendStamina(GetGameplaySettings()->CarryStaminaPerSecond * DeltaSeconds);
+		if (FLabStats* St = GetStatsServer()) { St->CarryMeters += GetVelocity().Size2D() * DeltaSeconds / 100.f; }
 		if (bExhausted)
 		{
 			UE_LOG(LogLabrynn, Log, TEXT("Cargar: %s se quedó sin aire y suelta a %s"), *GetName(), *CarriedBody->GetName());
 			DropCarried();
 		}
+	}
+
+	if (bHiding)
+	{
+		if (FLabStats* St = GetStatsServer()) { St->HiddenSeconds += DeltaSeconds; }
 	}
 
 	// Jadeo: ruido periódico (lo puede escuchar una IA con AI Perception: Hearing) y fin del jadeo.
@@ -592,9 +602,11 @@ void ALabCharacter::AddWound(float Amount, const FVector& Impulse)
 		return;
 	}
 	const ULabStaminaSettings* S = GetStaminaSettings();
+	const float WoundsBefore = WoundsServer;
 	WoundsServer = FMath::Min(S->MaxStamina, WoundsServer + Amount);
 	StaminaServer = FMath::Min(StaminaServer, S->MaxStamina - WoundsServer);
 	SyncStaminaBytes();
+	if (FLabStats* St = GetStatsServer()) { St->WoundsTaken += WoundsServer - WoundsBefore; }
 	UE_LOG(LogLabrynn, Log, TEXT("%s herido: +%.0f (heridas %.0f/%.0f)"), *GetName(), Amount, WoundsServer, S->MaxStamina);
 
 	if (WoundsServer >= S->MaxStamina)
@@ -704,6 +716,7 @@ void ALabCharacter::KnockDown(const FVector& Impulse)
 	ReviveProgressServer = 0.f;
 	ReviveByte = 0;
 	Reviver.Reset();
+	if (FLabStats* St = GetStatsServer()) { St->Downs++; }
 	UE_LOG(LogLabrynn, Log, TEXT("%s cayó"), *GetName());
 	ApplyLifeState(Old);
 }
@@ -858,6 +871,7 @@ void ALabCharacter::TickRevive(float DeltaSeconds)
 		ReviveProgressServer += DeltaSeconds / FMath::Max(0.1f, ReviveSeconds);
 		if (ReviveProgressServer >= 1.f)
 		{
+			if (FLabStats* St = R->GetStatsServer()) { St->Revives++; }
 			Revive();
 			return;
 		}
@@ -1185,6 +1199,10 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(InteractAction, ETriggerEvent::Completed, this, &ALabCharacter::InteractReleased); // soltar la mano
 		}
 		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::LanternInput); }
+		if (PingAction)
+		{
+			EIC->BindAction(PingAction, ETriggerEvent::Started, this, &ALabCharacter::PingPressed);
+		}
 		if (ThrowAction)
 		{
 			EIC->BindAction(ThrowAction, ETriggerEvent::Started, this, &ALabCharacter::ThrowPressed);
@@ -1298,6 +1316,45 @@ void ALabCharacter::InteractInput()
 	ServerInteract();
 }
 
+// ---------------------------------------------------------------- Estadísticas y ping
+
+FLabStats* ALabCharacter::GetStatsServer() const
+{
+	ALabPlayerState* PS = HasAuthority() ? GetPlayerState<ALabPlayerState>() : nullptr;
+	return PS ? &PS->Stats : nullptr;
+}
+
+void ALabCharacter::PingPressed()
+{
+	if (LifeState == ELabLifeState::Dead)
+	{
+		return; // los muertos no marcan (los caídos sí: "¡estoy acá!")
+	}
+	const FVector Start = FirstPersonCameraComponent->GetComponentLocation();
+	const FVector End = Start + GetControlRotation().Vector() * GetGameplaySettings()->PingRange;
+	FHitResult Hit;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(LabPing), false, this);
+	const FVector Loc = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Q) ? Hit.ImpactPoint : End;
+	ServerPing(Loc);
+}
+
+void ALabCharacter::ServerPing_Implementation(FVector Location)
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	const ULabGameplaySettings* G = GetGameplaySettings();
+	if (Now - LastPingServerTime < G->PingCooldown || LifeState == ELabLifeState::Dead
+		|| FVector::Dist(Location, GetActorLocation()) > G->PingRange + 300.f)
+	{
+		return;
+	}
+	LastPingServerTime = Now;
+	if (ALabGameState* GS = GetWorld()->GetGameState<ALabGameState>())
+	{
+		GS->AddPing(Location, GetPlayerState() ? GetPlayerState()->GetPlayerName() : GetName());
+		if (FLabStats* St = GetStatsServer()) { St->Pings++; }
+	}
+}
+
 // ---------------------------------------------------------------- Lanzables
 
 bool ALabCharacter::CanCarryMoreThrowables() const
@@ -1382,6 +1439,7 @@ void ALabCharacter::ServerThrow_Implementation(FVector Origin, FVector Velocity)
 		T->Kind = Kind;
 		T->FinishSpawning(FTransform(Origin));
 		T->Launch(Velocity, this);
+		if (FLabStats* St = GetStatsServer()) { St->Thrown++; }
 		UE_LOG(LogLabrynn, Log, TEXT("Lanzable: %s lanzó una %s (quedan %d)"), *GetName(), Kind == ELabThrowKind::Bottle ? TEXT("botella") : TEXT("piedra"), Throwables.Num());
 	}
 }

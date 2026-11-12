@@ -16,6 +16,7 @@
 #include "Enemy/LabMinotaur.h"
 #include "Interact/LabHidingSpot.h"
 #include "Interact/LabThrowable.h"
+#include "Core/LabPlayerState.h"
 #include "Core/LabGameplaySettings.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
@@ -31,6 +32,7 @@ ALabGameMode::ALabGameMode()
 	PlayerControllerClass = ALabPlayerController::StaticClass();
 	DefaultPawnClass = ALabCharacter::StaticClass();
 	HUDClass = ALabHUD::StaticClass();
+	PlayerStateClass = ALabPlayerState::StaticClass();
 	RelicClass = ALabRelic::StaticClass();
 	static ConstructorHelpers::FObjectFinder<ULabGameplaySettings> GameplayDA(TEXT("/Game/Labrynn/Core/DA_Gameplay.DA_Gameplay"));
 	GameplaySettings = GameplayDA.Object;

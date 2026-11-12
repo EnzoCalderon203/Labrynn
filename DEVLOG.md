@@ -437,6 +437,19 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - Servidor sobre la voz del cliente: `normal → agitada → normal → ahogada (700 Hz) → rebota (cargado) → ahogada`.
   - Cliente sobre la voz del host herido: `entrecortada`. ✅
 - ⚠️ **No se puede escuchar en pruebas automáticas** (no hay micrófono). Queda en PENDIENTES para probar con Luis.
+**19:46 · Diseño v2, punto 9: Premios graciosos + ping ✅**
+- `ALabPlayerState` replicado con estadísticas de la ronda (solo las escribe el servidor): caídas, heridas, trampas pisadas, compañeros levantados,
+  metros cargando a un caído, voz que hizo ruido, cosas lanzadas, segundos escondido y pings.
+- Al ganar o perder, `ALabGameState::ComputeAwards` le da cada premio al que más tiene: *Alfombra del laberinto*, *Imán de trampas*, *Colador humano*,
+  *Ángel de la guarda*, *Mula de carga*, *Megáfono*, *Lanzador olímpico*, *Rey del barril* y *Señalador compulsivo*.
+  El que no ganó nada se lleva *Turista*. Se dibujan en el HUD debajo del mensaje final.
+- **Ping:** **rueda hacia arriba** (`IA_Ping`) marca lo que mirás, hasta 30 m, para todos y durante 5 s, con un rombo, el nombre y la distancia.
+  Un ping por jugador, cooldown de 1 s y validación en el servidor. Los caídos pueden marcar ("¡estoy acá!"). Valores en `DA_Gameplay` (categoría Ping).
+- **Prueba con input real** (rueda en host y cliente; caída del cliente y heridas del host preparadas para forzar la derrota):
+  - `Ping: ... marcó` en los dos. El segundo ping del cliente, a 0,4 s del primero, se descartó por el cooldown.
+  - `Fase -> Lost` → 4 premios en el servidor y `Premios recibidos: 4` en el cliente. ✅
+- Corregido en la prueba: las heridas contaban el golpe bruto (500) y no lo que realmente se sumó (100).
+- Build **Shipping** de verificación OK: zip de 291 MB.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

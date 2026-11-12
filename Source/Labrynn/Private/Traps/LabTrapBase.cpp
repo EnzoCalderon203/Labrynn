@@ -7,6 +7,7 @@
 #include "TimerManager.h"
 #include "Perception/AISense_Hearing.h"
 #include "Interact/LabThrowable.h"
+#include "Core/LabPlayerState.h"
 #include "Labrynn.h"
 
 ALabTrapBase::ALabTrapBase()
@@ -53,6 +54,10 @@ void ALabTrapBase::OnTriggerOverlap(UPrimitiveComponent*, AActor* Other, UPrimit
 		return;
 	}
 	UE_LOG(LogLabrynn, Log, TEXT("Trampa %s activada por %s"), *GetName(), *Other->GetName());
+	if (bByChar)
+	{
+		if (FLabStats* St = Ch->GetStatsServer()) { St->TrapsTriggered++; }
+	}
 	SetState(ELabTrapState::Warning);
 	GetWorldTimerManager().SetTimer(StepTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 	{

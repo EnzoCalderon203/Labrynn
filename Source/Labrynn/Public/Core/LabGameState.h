@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
@@ -14,6 +14,26 @@ enum class ELabPhase : uint8
 	Escape  UMETA(DisplayName = "Escape"),       // reliquia tomada: la salida está abierta
 	Won     UMETA(DisplayName = "Victoria"),
 	Lost    UMETA(DisplayName = "Derrota"),
+};
+
+/** Premio gracioso del final de ronda. */
+USTRUCT(BlueprintType)
+struct FLabAward
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadOnly) FString Title;
+	UPROPERTY(BlueprintReadOnly) FString Player;
+	UPROPERTY(BlueprintReadOnly) FString Detail;
+};
+
+/** Marca de ping (rueda del mouse). */
+USTRUCT(BlueprintType)
+struct FLabPing
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadOnly) FVector_NetQuantize Location = FVector::ZeroVector;
+	UPROPERTY(BlueprintReadOnly) FString Player;
+	UPROPERTY(BlueprintReadOnly) float ServerTime = 0.f;
 };
 
 /**
@@ -62,7 +82,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|Game")
 	float GetPhaseStartTime() const { return PhaseStartTime; }
 
+	/** Solo servidor: calcula los premios a partir de las estadísticas de cada PlayerState. */
+	void ComputeAwards();
+	const TArray<FLabAward>& GetAwards() const { return Awards; }
+
+	/** Solo servidor. */
+	void AddPing(const FVector& Location, const FString& Player);
+	const TArray<FLabPing>& GetPings() const { return Pings; }
+
 protected:
+	UPROPERTY(ReplicatedUsing = OnRep_Awards)
+	TArray<FLabAward> Awards;
+
+	UFUNCTION()
+	void OnRep_Awards();
+
+	UPROPERTY(Replicated)
+	TArray<FLabPing> Pings;
+
 	UFUNCTION()
 	void OnRep_MazeSeed();
 

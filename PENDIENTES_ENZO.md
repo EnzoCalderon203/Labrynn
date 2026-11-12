@@ -88,6 +88,13 @@ Si algún efecto es demasiado fuerte o flojo, ajustar la categoría **Voz** de `
 
 Los nombres exactos se ven en el panel Details del Blueprint hijo (categoría `Lab|...|Audio`). Si alguno no aparece, avisar.
 
+## 2h. 🟡 Mirar en pantalla (la lógica está probada por logs, lo visual no)
+En PIE (2 jugadores, Listen Server):
+1. **Cargar a un caído:** ¿el cuerpo se ve cruzado sobre el hombro, o queda raro? Si queda raro, avisar (se ajusta un offset).
+2. **Click izquierdo mantenido** con una piedra: ¿se ve bien el arco de puntitos?
+3. **Ping** (rueda arriba): ¿se ve el rombo amarillo con el nombre y los metros?
+4. **Premios** al ganar o perder: ¿se leen bien debajo del mensaje final?
+
 ## 3. 🟡 Joystick con drift
 Hay un **"Wireless Controller" Bluetooth** (joystick de PlayStation) conectado. En una prueba, el personaje del host
 caminó solo por el laberinto, y lo más probable es que haya sido drift del stick (el juego lee el joystick aunque la ventana

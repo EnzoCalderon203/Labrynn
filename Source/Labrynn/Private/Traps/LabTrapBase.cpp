@@ -6,6 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "Perception/AISense_Hearing.h"
+#include "Interact/LabThrowable.h"
 #include "Labrynn.h"
 
 ALabTrapBase::ALabTrapBase()
@@ -42,12 +43,16 @@ void ALabTrapBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 
 void ALabTrapBase::OnTriggerOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveComponent*, int32, bool, const FHitResult&)
 {
+	// La activa un personaje vivo... o un objeto lanzado (piedra/botella en vuelo): activar trampas a distancia.
 	const ALabCharacter* Ch = Cast<ALabCharacter>(Other);
-	if (!Ch || !Ch->IsAliveAndFree() || State != ELabTrapState::Armed)
+	const ALabThrowable* Thrown = Cast<ALabThrowable>(Other);
+	const bool bByChar = Ch && Ch->IsAliveAndFree();
+	const bool bByThrow = Thrown && Thrown->IsInFlight();
+	if ((!bByChar && !bByThrow) || State != ELabTrapState::Armed)
 	{
 		return;
 	}
-	UE_LOG(LogLabrynn, Log, TEXT("Trampa %s activada por %s"), *GetName(), *Ch->GetName());
+	UE_LOG(LogLabrynn, Log, TEXT("Trampa %s activada por %s"), *GetName(), *Other->GetName());
 	SetState(ELabTrapState::Warning);
 	GetWorldTimerManager().SetTimer(StepTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 	{

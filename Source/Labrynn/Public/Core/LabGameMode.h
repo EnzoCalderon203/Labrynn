@@ -95,6 +95,10 @@ private:
 	void EnsureLanterns();
 	void SpawnMinotaur();
 	void SpawnHidingSpots();
+	void SpawnThrowables();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class ALabThrowable>> Throwables;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<class ALabHidingSpot>> HidingSpots;

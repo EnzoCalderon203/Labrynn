@@ -43,6 +43,8 @@ ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	static ConstructorHelpers::FObjectFinder<UInputAction> IATalk(TEXT("/Game/Labrynn/Core/Input/IA_Talk.IA_Talk"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> IACrouch(TEXT("/Game/Labrynn/Core/Input/IA_Crouch.IA_Crouch"));
 	CrouchAction = IACrouch.Object;
+	static ConstructorHelpers::FObjectFinder<UInputAction> IAThrow(TEXT("/Game/Labrynn/Core/Input/IA_Throw.IA_Throw"));
+	ThrowAction = IAThrow.Object;
 	SprintAction = IASprint.Object;
 	InteractAction = IAInteract.Object;
 	LanternAction = IALantern.Object;
@@ -147,6 +149,7 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, bReaching);
 	DOREPLIFETIME(ALabCharacter, Pull);
 	DOREPLIFETIME(ALabCharacter, CarriedBody);
+	DOREPLIFETIME_CONDITION(ALabCharacter, Throwables, COND_OwnerOnly);
 	DOREPLIFETIME(ALabCharacter, CarriedBy);
 }
 
@@ -1076,6 +1079,7 @@ void ALabCharacter::Tick(float DeltaSeconds)
 	if (IsLocallyControlled())
 	{
 		TickCarryHold();
+		TickAim();
 	}
 
 	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
@@ -1131,6 +1135,11 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(InteractAction, ETriggerEvent::Completed, this, &ALabCharacter::InteractReleased); // soltar la mano
 		}
 		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::LanternInput); }
+		if (ThrowAction)
+		{
+			EIC->BindAction(ThrowAction, ETriggerEvent::Started, this, &ALabCharacter::ThrowPressed);
+			EIC->BindAction(ThrowAction, ETriggerEvent::Completed, this, &ALabCharacter::ThrowReleased);
+		}
 		if (CrouchAction)
 		{
 			EIC->BindAction(CrouchAction, ETriggerEvent::Started, this, &ALabCharacter::CrouchPressed);
@@ -1237,6 +1246,94 @@ void ALabCharacter::InteractInput()
 	ALabCharacter* Body = Cast<ALabCharacter>(Target);
 	InteractHoldTarget = (Body && !Body->IsAliveAndFree()) ? Body : nullptr;
 	ServerInteract();
+}
+
+// ---------------------------------------------------------------- Lanzables
+
+bool ALabCharacter::CanCarryMoreThrowables() const
+{
+	return Throwables.Num() < GetGameplaySettings()->MaxThrowablesCarried;
+}
+
+void ALabCharacter::AddThrowable(ELabThrowKind Kind)
+{
+	if (HasAuthority() && CanCarryMoreThrowables())
+	{
+		Throwables.Add(Kind);
+		UE_LOG(LogLabrynn, Log, TEXT("Lanzable: %s juntó una %s (lleva %d)"), *GetName(), Kind == ELabThrowKind::Bottle ? TEXT("botella") : TEXT("piedra"), Throwables.Num());
+	}
+}
+
+FVector ALabCharacter::GetThrowOrigin() const
+{
+	return FirstPersonCameraComponent->GetComponentLocation() + GetControlRotation().Vector() * 45.f;
+}
+
+FVector ALabCharacter::GetThrowVelocity() const
+{
+	const ULabGameplaySettings* G = GetGameplaySettings();
+	return GetControlRotation().Vector() * G->ThrowSpeed + FVector(0.f, 0.f, G->ThrowUpBoost);
+}
+
+void ALabCharacter::ThrowPressed()
+{
+	bAiming = Throwables.Num() > 0 && IsAliveAndFree() && !bHiding && !bReaching;
+}
+
+void ALabCharacter::ThrowReleased()
+{
+	if (bAiming)
+	{
+		bAiming = false;
+		AimPath.Reset();
+		ServerThrow(GetThrowOrigin(), GetThrowVelocity());
+	}
+}
+
+void ALabCharacter::TickAim()
+{
+	if (!bAiming)
+	{
+		return;
+	}
+	// Arco de trayectoria (se dibuja en el HUD).
+	FPredictProjectilePathParams P(8.f, GetThrowOrigin(), GetThrowVelocity(), 2.5f, ECC_WorldStatic, this);
+	P.SimFrequency = 12.f;
+	P.bTraceWithCollision = true;
+	FPredictProjectilePathResult R;
+	UGameplayStatics::PredictProjectilePath(this, P, R);
+	AimPath.Reset();
+	for (const FPredictProjectilePathPointData& D : R.PathData)
+	{
+		AimPath.Add(D.Location);
+	}
+}
+
+void ALabCharacter::ServerThrow_Implementation(FVector Origin, FVector Velocity)
+{
+	if (Throwables.Num() == 0 || !IsAliveAndFree() || bHiding)
+	{
+		return;
+	}
+	// Validación anti-trampa simple: el origen cerca de la cámara y la velocidad acotada.
+	if (FVector::Dist(Origin, GetActorLocation()) > 250.f)
+	{
+		Origin = GetActorLocation() + FVector(0.f, 0.f, 60.f);
+	}
+	const ULabGameplaySettings* G = GetGameplaySettings();
+	Velocity = Velocity.GetClampedToMaxSize(G->ThrowSpeed + G->ThrowUpBoost + 50.f);
+
+	const ELabThrowKind Kind = Throwables.Pop();
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ALabThrowable* T = GetWorld()->SpawnActorDeferred<ALabThrowable>(ALabThrowable::StaticClass(), FTransform(Origin), this, this, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (T)
+	{
+		T->Kind = Kind;
+		T->FinishSpawning(FTransform(Origin));
+		T->Launch(Velocity, this);
+		UE_LOG(LogLabrynn, Log, TEXT("Lanzable: %s lanzó una %s (quedan %d)"), *GetName(), Kind == ELabThrowKind::Bottle ? TEXT("botella") : TEXT("piedra"), Throwables.Num());
+	}
 }
 
 void ALabCharacter::TickCarryHold()

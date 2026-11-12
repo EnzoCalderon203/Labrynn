@@ -15,6 +15,7 @@
 #include "Traps/LabGasTrap.h"
 #include "Enemy/LabMinotaur.h"
 #include "Interact/LabHidingSpot.h"
+#include "Interact/LabThrowable.h"
 #include "Core/LabGameplaySettings.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
@@ -79,6 +80,7 @@ void ALabGameMode::StartPlay()
 	SpawnTraps();
 	SpawnPickups();
 	SpawnHidingSpots();
+	SpawnThrowables();
 	GetWorldTimerManager().SetTimer(CheckTimer, this, &ALabGameMode::CheckWinLose, 0.25f, true);
 
 #if !UE_BUILD_SHIPPING
@@ -395,6 +397,63 @@ void ALabGameMode::StartPlay()
 		}
 	}
 
+	// -LabTeleportToThrowable=N: host frente al primer lanzable; -LabTeleportToSpike=M: host a una celda de unos pinchos, mirándolos.
+	{
+		float At1 = 0.f, At2 = 0.f;
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabTeleportToThrowable="), At1))
+		{
+			FTimerHandle T1;
+			GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				// -LabThrowClient: acomoda al primer cliente en vez del host.
+				const bool bForClient = FParse::Param(FCommandLine::Get(), TEXT("LabThrowClient"));
+				APlayerController* PC = nullptr;
+				for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+				{
+					if (It->Get() && It->Get()->IsLocalController() != bForClient) { PC = It->Get(); break; }
+				}
+				// -LabThrowKind=bottle elige la primera botella (si no, el primer lanzable).
+				FString KindStr;
+				FParse::Value(FCommandLine::Get(), TEXT("LabThrowKind="), KindStr);
+				ALabThrowable* Target = nullptr;
+				for (ALabThrowable* T : Throwables)
+				{
+					if (T && (KindStr != TEXT("bottle") || T->Kind == ELabThrowKind::Bottle)) { Target = T; break; }
+				}
+				if (!PC || !PC->GetPawn() || !Target) { return; }
+				const FVector Loc = Target->GetActorLocation();
+				PC->GetPawn()->SetActorLocation(Loc + FVector(-90.f, 0.f, 95.f), false, nullptr, ETeleportType::TeleportPhysics);
+				PC->ClientSetRotation(FRotator(-50.f, 0.f, 0.f));
+			}), At1, false);
+		}
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabTeleportToSpike="), At2))
+		{
+			FTimerHandle T2;
+			GetWorldTimerManager().SetTimer(T2, FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				const ALabMaze* Maze = GetGameState<ALabGameState>()->GetMaze();
+				if (!PC || !PC->GetPawn() || !Maze) { return; }
+				static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+				for (ALabTrapBase* Trap : Traps)
+				{
+					if (!Trap || !Trap->IsA<ALabSpikeTrap>()) { continue; }
+					const FIntPoint C = Maze->WorldToCell(Trap->GetActorLocation());
+					for (const FIntPoint& D : Dirs)
+					{
+						if (!Maze->GetLayout().HasWallBetween(C, D) && !Maze->GetObstacles().Contains(C + D))
+						{
+							PC->GetPawn()->SetActorLocation(Maze->CellToWorld(C + D) + FVector(0.f, 0.f, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+							PC->SetControlRotation(FRotator(-15.f, FVector(-D.X, -D.Y, 0.f).Rotation().Yaw, 0.f));
+							UE_LOG(LogLabrynn, Log, TEXT("[Prueba] host a una celda de %s"), *Trap->GetName());
+							return;
+						}
+					}
+				}
+			}), At2, false);
+		}
+	}
+
 	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
 	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
 	static bool bAutoStaminaDone = false;
@@ -618,6 +677,38 @@ void ALabGameMode::SpawnHidingSpots()
 		}
 	}
 	UE_LOG(LogLabrynn, Log, TEXT("Escondites: %d"), Spawned);
+}
+
+void ALabGameMode::SpawnThrowables()
+{
+	const ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	const ULabGameplaySettings* S = GameplaySettings ? GameplaySettings.Get() : GetDefault<ULabGameplaySettings>();
+	const FLabMazeLayout& L = Maze->GetLayout();
+	FRandomStream Rng(GS->GetMazeSeed() * 71 + 29);
+	int32 Spawned = 0;
+	for (int32 Tries = 0; Tries < 200 && Spawned < S->ThrowableCount; ++Tries)
+	{
+		const FIntPoint C(Rng.RandRange(0, L.Width - 1), Rng.RandRange(0, L.Height - 1));
+		if (Maze->GetPitCells().Contains(C) || Maze->GetObstacles().Contains(C) || L.IsInCenterRoom(C))
+		{
+			continue;
+		}
+		const FVector Loc = Maze->CellToWorld(C) + FVector(Rng.FRandRange(-120.f, 120.f), Rng.FRandRange(-120.f, 120.f), 9.f);
+		ALabThrowable* T = GetWorld()->SpawnActorDeferred<ALabThrowable>(ALabThrowable::StaticClass(), FTransform(Loc), this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (T)
+		{
+			T->Kind = Rng.FRand() < 0.5f ? ELabThrowKind::Stone : ELabThrowKind::Bottle;
+			T->FinishSpawning(FTransform(Loc));
+			Throwables.Add(T);
+			++Spawned;
+		}
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Lanzables: %d"), Spawned);
 }
 
 void ALabGameMode::SpawnMinotaur()

@@ -26,6 +26,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lanzables", meta = (ClampMin = 1, ClampMax = 10))
 	int32 MaxThrowablesCarried = 3;
 
+	/** Velocidad del lanzamiento (cm/s) y empuje extra hacia arriba. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lanzables")
+	float ThrowSpeed = 1300.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lanzables")
+	float ThrowUpBoost = 150.f;
+
+	/** Ruido al romperse una botella (volumen, alcance cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lanzables")
+	float BottleNoise = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lanzables")
+	float BottleNoiseRange = 3200.f;
+
+	/** Ruido de una piedra al golpear (se escala con la velocidad del golpe). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lanzables")
+	float StoneNoise = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lanzables")
+	float StoneNoiseRange = 1800.f;
+
 	// --- Obstáculos ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 0, ClampMax = 40))
 	int32 RubbleCount = 8;

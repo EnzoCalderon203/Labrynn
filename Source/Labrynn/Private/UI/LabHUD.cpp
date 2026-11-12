@@ -152,6 +152,28 @@ void ALabHUD::DrawHUD()
 		}
 	}
 
+	// Lanzables: inventario y arco de trayectoria mientras se apunta (click izq. mantenido).
+	if (Ch->GetThrowables().Num() > 0)
+	{
+		int32 Stones = 0, Bottles = 0;
+		for (ELabThrowKind K : Ch->GetThrowables()) { (K == ELabThrowKind::Bottle ? Bottles : Stones)++; }
+		DrawText(FString::Printf(TEXT("Piedras %d  Botellas %d   [click izq.] apuntar y lanzar"), Stones, Bottles),
+			FLinearColor(0.8f, 0.8f, 0.7f), 32.f, Canvas->ClipY - 150.f, Font, 1.f);
+	}
+	if (Ch->IsAiming())
+	{
+		const TArray<FVector>& Path = Ch->GetAimPath();
+		for (int32 i = 1; i < Path.Num(); ++i)
+		{
+			const FVector P = Project(Path[i]);
+			if (P.Z > 0.f)
+			{
+				const float S = i == Path.Num() - 1 ? 8.f : 4.f;
+				DrawRect(FLinearColor(1.f, 0.95f, 0.6f, 0.8f), P.X - S * 0.5f, P.Y - S * 0.5f, S, S);
+			}
+		}
+	}
+
 	// Voz: indicador propio y sobre los compañeros que hablan (si están al alcance de la voz).
 	if (Ch->IsTalking())
 	{

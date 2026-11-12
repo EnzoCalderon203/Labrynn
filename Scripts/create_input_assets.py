@@ -17,6 +17,7 @@ ACTIONS = [
     ("IA_Lantern", "F"),
     ("IA_Talk", "V"),
     ("IA_Crouch", "C"),
+    ("IA_Throw", "LeftMouseButton"),
 ]
 
 

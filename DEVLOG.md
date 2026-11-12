@@ -410,6 +410,20 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - **Prueba con input real:** el cliente cae; el host **mantiene E** → `carga al hombro` → **W** → velocidad 225 y stamina 92 → 56 %
   → **E** → `suelta`. El cliente caído **habla con V** y su voz hace ruido (0,3). ✅
 - No probado aparte (lógica directa): "si cae él, caen los dos" y "llevarlo al Corazón".
+**19:35 · Diseño v2, punto 7: Piedras y botellas para distraer ✅**
+- `ALabThrowable` replicado, **12 por laberinto** (mitad y mitad). **E** para juntar, **máximo 3** en el inventario (replicado solo al dueño).
+- **Click izquierdo mantenido** (`IA_Throw`) = apuntar: **arco de trayectoria** con `PredictProjectilePath`, dibujado en el HUD (anda en Shipping).
+  **Soltar = lanzar**: el servidor valida el inventario y acota el origen y la velocidad.
+- **Botella:** se rompe al primer golpe (ruido 1,0, alcance 32 m). **Piedra:** rebota con un ruido proporcional a la velocidad del golpe (0,6 → 0,24)
+  y, cuando para, **se puede volver a juntar**.
+- **El Minotauro oye los golpes** (tags `Botella` / `Piedra`) y **los objetos lanzados activan trampas** al pasar por su zona.
+  Sonidos `ImpactSound` y `ShatterSound` para Luis. Valores en `DA_Gameplay`.
+- **Prueba con input real:**
+  - Host **E** junta una piedra → **click izquierdo** → `Trampa LabSpikeTrap_0 activada por LabThrowable_12` (a distancia) más los rebotes.
+  - Con el escape activo: `Minotauro: oyó 'Piedra' (0.60)`.
+  - **Cliente: E + click** → `C_1 juntó` / `lanzó` (por RPC).
+  - Botella: un solo golpe (ruido 1,0) y se rompe. ✅
+- Nota de prueba: si cargás la reliquia, la E apunta primero a la reliquia (la tenés en los brazos) y no al objeto del piso.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

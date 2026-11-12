@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Interact/LabInteractable.h"
+#include "Interact/LabThrowable.h"
 #include "LabCharacter.generated.h"
 
 class UInputComponent;
@@ -77,6 +78,14 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Lab|Voice")
 	bool IsTalking() const { return bTalking; }
+
+	// --- Lanzables (piedras y botellas) ---
+	bool CanCarryMoreThrowables() const;
+	/** Solo servidor. */
+	void AddThrowable(ELabThrowKind Kind);
+	const TArray<ELabThrowKind>& GetThrowables() const { return Throwables; }
+	bool IsAiming() const { return bAiming; }
+	const TArray<FVector>& GetAimPath() const { return AimPath; }
 
 	// --- Cargar a un caído ---
 	UFUNCTION(BlueprintPure, Category = "Lab|Help")
@@ -179,6 +188,25 @@ protected:
 	/** Hasta qué hora del servidor está en una corriente de aire (no se puede encender). */
 	UPROPERTY(Replicated)
 	float GasUntilServerTime = 0.f;
+
+	// Lanzables: inventario (solo lo ve el dueño), apuntar (click izq. mantenido) y lanzar (soltar).
+	UPROPERTY(Replicated)
+	TArray<ELabThrowKind> Throwables;
+
+	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
+	TObjectPtr<UInputAction> ThrowAction;
+
+	void ThrowPressed();
+	void ThrowReleased();
+	void TickAim();
+
+	UFUNCTION(Server, Reliable)
+	void ServerThrow(FVector Origin, FVector Velocity);
+
+	bool bAiming = false;
+	TArray<FVector> AimPath;
+	FVector GetThrowOrigin() const;
+	FVector GetThrowVelocity() const;
 
 	// Cargar a un caído.
 	UPROPERTY(Replicated)

@@ -1,0 +1,40 @@
+# --- Unreal Engine: carpetas generadas ---
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+Build/
+!Build/**/*.ico
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# --- Archivos de proyecto generados por IDE ---
+.vs/
+.vscode/
+.idea/
+*.sln
+*.slnx
+*.suo
+*.sdf
+*.VC.db
+*.VC.opendb
+*.opensdf
+*.user
+*.code-workspace
+
+# --- Compilación ---
+*.pdb
+*.dll
+*.exe
+*.lib
+*.exp
+*.ilk
+
+# --- Builds empaquetadas y entregas ---
+Packaged/
+*.zip
+
+# --- Varios ---
+.DS_Store
+Thumbs.db
+desktop.ini

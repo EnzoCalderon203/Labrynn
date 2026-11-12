@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Interact/LabInteractable.h"
 #include "LabCharacter.generated.h"
 
 class UInputComponent;
@@ -21,8 +22,16 @@ struct FInputActionValue;
  * y asigna meshes, animaciones e input. Los nombres de propiedades/componentes se mantienen
  * iguales a la plantilla para que esos valores se conserven.
  */
+UENUM(BlueprintType)
+enum class ELabLifeState : uint8
+{
+	Alive,
+	Downed UMETA(DisplayName = "Caído"),  // ragdoll; un compañero lo puede levantar
+	Dead   UMETA(DisplayName = "Muerto"),  // solo lo revive el Corazón del Laberinto
+};
+
 UCLASS()
-class LABRYNN_API ALabCharacter : public ACharacter
+class LABRYNN_API ALabCharacter : public ACharacter, public ILabInteractable
 {
 	GENERATED_BODY()
 
@@ -159,10 +168,83 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|Relic")
 	bool IsCarryingRelic() const { return CarriedRelic.IsValid(); }
 
-	/** Vivo y no atrapado (se completa con el sistema de rescate). */
+	/** Vivo y no caído. */
 	UFUNCTION(BlueprintPure, Category = "Lab|State")
-	virtual bool IsAliveAndFree() const { return true; }
+	bool IsAliveAndFree() const { return LifeState == ELabLifeState::Alive; }
 
+	UFUNCTION(BlueprintPure, Category = "Lab|State")
+	ELabLifeState GetLifeState() const { return LifeState; }
+
+	UFUNCTION(BlueprintPure, Category = "Lab|State")
+	float GetHealth() const { return Health; }
+
+	/** 0..1 mientras alguien lo está levantando. */
+	UFUNCTION(BlueprintPure, Category = "Lab|State")
+	float GetReviveProgress() const { return ReviveByte / 255.f; }
+
+	/** Segundos restantes antes de morir desangrado (solo válido si está caído). */
+	UFUNCTION(BlueprintPure, Category = "Lab|State")
+	float GetBleedOutRemaining() const;
+
+	/** Solo servidor. Lo deja caído (trampas, caídas). Impulse = empujón cosmético del ragdoll. */
+	void KnockDown(const FVector& Impulse = FVector::ZeroVector);
+
+	/** Solo servidor. Lo levanta con HealthAfter de salud (rescate o Corazón). Sirve también para muertos. */
+	void Revive(float HealthAfter = 50.f);
+
+	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	// ILabInteractable: levantar a un compañero caído.
+	virtual bool CanInteract(const ALabCharacter* By) const override;
+	virtual void Interact(ALabCharacter* By) override;
+	virtual FText GetInteractPrompt(const ALabCharacter* By) const override;
+
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|State")
+	float MaxHealth = 100.f;
+
+	/** Segundos caído antes de morir. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|State")
+	float BleedOutSeconds = 30.f;
+
+	/** Segundos que tarda un compañero en levantarte. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|State")
+	float ReviveSeconds = 3.f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_LifeState, BlueprintReadOnly, Category = "Lab|State")
+	ELabLifeState LifeState = ELabLifeState::Alive;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Lab|State")
+	float Health = 100.f;
+
+	UPROPERTY(Replicated)
+	uint8 ReviveByte = 0;
+
+	/** Hora del servidor en que cayó (para el contador de desangrado). */
+	UPROPERTY(Replicated)
+	float DownedAtServerTime = 0.f;
+
+	/** Empujón del ragdoll (replicado para que todos lo vean salir volando parecido). */
+	UPROPERTY(Replicated)
+	FVector_NetQuantize10 DownImpulse;
+
+	UFUNCTION()
+	void OnRep_LifeState(ELabLifeState OldState);
+
+private:
+	void ApplyLifeState(ELabLifeState OldState);
+	void StartRagdoll();
+	void StopRagdoll();
+	void TickRevive(float DeltaSeconds);
+
+	TWeakObjectPtr<ALabCharacter> Reviver;
+	float ReviveProgressServer = 0.f;
+	FTransform MeshRelativeTransform;
+	FTransform CameraRelativeTransform;
+	bool bRagdoll = false;
+	EVisibilityBasedAnimTickOption SavedTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
+
+public:
 	/** Solo servidor. */
 	void SetHasFlashlight(bool bHas);
 

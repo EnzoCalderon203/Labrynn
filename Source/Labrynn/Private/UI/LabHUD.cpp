@@ -4,6 +4,7 @@
 #include "Core/LabGameState.h"
 #include "Interact/LabInteractable.h"
 #include "Engine/Canvas.h"
+#include "EngineUtils.h"
 #include "Engine/Engine.h"
 
 void ALabHUD::DrawHUD()
@@ -34,6 +35,44 @@ void ALabHUD::DrawHUD()
 	else
 	{
 		DrawText(TEXT("SIN LINTERNA - quedate cerca del grupo"), FLinearColor(0.6f, 0.6f, 0.65f), X, Y, Font, 1.2f);
+	}
+
+	// Estado propio: caído o muerto.
+	if (Ch->GetLifeState() != ELabLifeState::Alive)
+	{
+		FString Msg;
+		if (Ch->GetLifeState() == ELabLifeState::Downed)
+		{
+			Msg = FString::Printf(TEXT("ESTÁS EN EL PISO - ¡gritale a alguien que te levante!  (%ds)"), FMath::CeilToInt(Ch->GetBleedOutRemaining()));
+		}
+		else
+		{
+			Msg = TEXT("MORISTE - el Corazón del Laberinto puede revivirte");
+		}
+		float W, H;
+		GetTextSize(Msg, W, H, Font, 1.6f);
+		DrawText(Msg, FLinearColor(1.f, 0.3f, 0.25f), (Canvas->ClipX - W) * 0.5f, Canvas->ClipY * 0.75f, Font, 1.6f);
+		if (Ch->GetReviveProgress() > 0.f)
+		{
+			const float BW = 300.f;
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), (Canvas->ClipX - BW) * 0.5f, Canvas->ClipY * 0.75f + 36.f, BW, 10.f);
+			DrawRect(FLinearColor(0.4f, 1.f, 0.5f), (Canvas->ClipX - BW) * 0.5f, Canvas->ClipY * 0.75f + 36.f, BW * Ch->GetReviveProgress(), 10.f);
+		}
+	}
+
+	// Marcadores de compañeros caídos (se ven a través de las paredes: así se coordina el rescate).
+	for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+	{
+		if (*It == Ch || It->GetLifeState() != ELabLifeState::Downed)
+		{
+			continue;
+		}
+		const FVector P = Project(It->GetActorLocation() + FVector(0.f, 0.f, 60.f));
+		if (P.Z > 0.f) // delante de la cámara
+		{
+			const FString Mark = FString::Printf(TEXT("! AYUDA %ds"), FMath::CeilToInt(It->GetBleedOutRemaining()));
+			DrawText(Mark, FLinearColor(1.f, 0.4f, 0.2f), P.X - 40.f, P.Y, Font, 1.2f);
+		}
 	}
 
 	if (Ch->IsCarryingRelic())

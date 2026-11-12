@@ -10,6 +10,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "EngineUtils.h"
+#include "Engine/DamageEvents.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 #include "Interact/LabInteractable.h"
 #include "Interact/LabRelic.h"
 #include "Labrynn.h"
@@ -75,6 +78,9 @@ void ALabCharacter::BeginPlay()
 	Flashlight->SetIntensity(FlashlightIntensity);
 	Flashlight->SetAttenuationRadius(FlashlightRange);
 	BaseWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
+	MeshRelativeTransform = GetMesh()->GetRelativeTransform();
+	CameraRelativeTransform = FirstPersonCameraComponent->GetRelativeTransform();
+	Health = MaxHealth;
 	PersonalGlow->SetIntensity(PersonalGlowIntensity);
 	PersonalGlow->SetAttenuationRadius(PersonalGlowRadius);
 	ApplyFlashlightState();
@@ -92,6 +98,211 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, bFlashlightOn);
 	DOREPLIFETIME(ALabCharacter, bHasFlashlight);
 	DOREPLIFETIME(ALabCharacter, BatteryByte);
+	DOREPLIFETIME(ALabCharacter, LifeState);
+	DOREPLIFETIME(ALabCharacter, Health);
+	DOREPLIFETIME(ALabCharacter, ReviveByte);
+	DOREPLIFETIME(ALabCharacter, DownedAtServerTime);
+	DOREPLIFETIME(ALabCharacter, DownImpulse);
+}
+
+// ---------------------------------------------------------------- Vida, caída y rescate
+
+float ALabCharacter::GetBleedOutRemaining() const
+{
+	const AGameStateBase* GS = GetWorld()->GetGameState();
+	return GS ? FMath::Max(0.f, BleedOutSeconds - (GS->GetServerWorldTimeSeconds() - DownedAtServerTime)) : 0.f;
+}
+
+float ALabCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	if (!HasAuthority() || LifeState != ELabLifeState::Alive)
+	{
+		return 0.f;
+	}
+	const float Applied = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+	Health = FMath::Max(0.f, Health - Applied);
+	if (Health <= 0.f)
+	{
+		const FVector Push = DamageCauser ? (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal() * 300.f : FVector::ZeroVector;
+		KnockDown(Push + FVector(0, 0, 200.f));
+	}
+	return Applied;
+}
+
+void ALabCharacter::KnockDown(const FVector& Impulse)
+{
+	check(HasAuthority());
+	if (LifeState != ELabLifeState::Alive)
+	{
+		return;
+	}
+	if (ALabRelic* Relic = CarriedRelic.Get())
+	{
+		Relic->SetCarrier(nullptr); // se le cae la reliquia
+	}
+
+	const ELabLifeState Old = LifeState;
+	Health = 0.f;
+	LifeState = ELabLifeState::Downed;
+	DownImpulse = Impulse;
+	if (const AGameStateBase* GS = GetWorld()->GetGameState())
+	{
+		DownedAtServerTime = GS->GetServerWorldTimeSeconds();
+	}
+	ReviveProgressServer = 0.f;
+	ReviveByte = 0;
+	Reviver.Reset();
+	UE_LOG(LogLabrynn, Log, TEXT("%s cayó"), *GetName());
+	ApplyLifeState(Old);
+}
+
+void ALabCharacter::Revive(float HealthAfter)
+{
+	check(HasAuthority());
+	if (LifeState == ELabLifeState::Alive)
+	{
+		return;
+	}
+	const ELabLifeState Old = LifeState;
+	LifeState = ELabLifeState::Alive;
+	Health = FMath::Clamp(HealthAfter, 1.f, MaxHealth);
+	ReviveProgressServer = 0.f;
+	ReviveByte = 0;
+	Reviver.Reset();
+	UE_LOG(LogLabrynn, Log, TEXT("%s se levantó (salud %.0f)"), *GetName(), Health);
+	ApplyLifeState(Old);
+}
+
+void ALabCharacter::OnRep_LifeState(ELabLifeState OldState)
+{
+	ApplyLifeState(OldState);
+}
+
+void ALabCharacter::ApplyLifeState(ELabLifeState OldState)
+{
+	const bool bWasAlive = OldState == ELabLifeState::Alive;
+	const bool bIsAlive = LifeState == ELabLifeState::Alive;
+
+	if (bWasAlive && !bIsAlive)
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
+		// Los compañeros pueden pararse encima del cuerpo, y la cápsula no sostiene al propio ragdoll
+		// (en el cliente dueño la cápsula queda quieta y "paraba" el cuerpo desde adentro).
+		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
+		StartRagdoll();
+	}
+	else if (!bWasAlive && bIsAlive)
+	{
+		StopRagdoll();
+		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
+	ApplyFlashlightState();
+}
+
+void ALabCharacter::StartRagdoll()
+{
+	if (bRagdoll)
+	{
+		return;
+	}
+	bRagdoll = true;
+
+	USkeletalMeshComponent* Body = GetMesh();
+	// Desadjuntar de la cápsula: el servidor mueve la cápsula a la pelvis y, adjunto, el ragdoll la seguiría
+	// en un bucle (bug real encontrado en la prueba: el cuerpo terminó a 2 km).
+	Body->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	Body->SetOwnerNoSee(false); // el caído ve su propio cuerpo desparramado (parte de la gracia)
+	// En UE 5.8 los primitivos "WorldSpaceRepresentation" nunca se muestran al dueño: quitar la marca.
+	Body->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::None;
+	Body->MarkRenderStateDirty();
+	// El dueño no renderizaba su cuerpo y el mesh no actualizaba huesos: el ragdoll quedaba "parado".
+	SavedTickOption = Body->VisibilityBasedAnimTickOption;
+	Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	Body->SetCollisionProfileName(TEXT("Ragdoll"));
+	Body->SetAllBodiesSimulatePhysics(true);
+	Body->SetSimulatePhysics(true);
+	Body->WakeAllRigidBodies();
+	if (!DownImpulse.IsNearlyZero())
+	{
+		Body->AddImpulse(DownImpulse, NAME_None, /*bVelChange*/ true);
+	}
+	FirstPersonMesh->SetVisibility(false);
+
+	if (IsLocallyControlled())
+	{
+		// Cámara afuera del cuerpo (se actualiza en Tick siguiendo la pelvis).
+		FirstPersonCameraComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		FirstPersonCameraComponent->bUsePawnControlRotation = false;
+	}
+}
+
+void ALabCharacter::StopRagdoll()
+{
+	if (!bRagdoll)
+	{
+		return;
+	}
+	bRagdoll = false;
+
+	USkeletalMeshComponent* Body = GetMesh();
+	Body->SetAllBodiesSimulatePhysics(false);
+	Body->SetSimulatePhysics(false);
+	Body->SetCollisionProfileName(TEXT("CharacterMesh"));
+	Body->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	Body->SetRelativeTransform(MeshRelativeTransform);
+	Body->VisibilityBasedAnimTickOption = SavedTickOption;
+	Body->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	Body->MarkRenderStateDirty();
+	Body->SetOwnerNoSee(true);
+	FirstPersonMesh->SetVisibility(true);
+
+	FirstPersonCameraComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform, FName("head"));
+	FirstPersonCameraComponent->SetRelativeTransform(CameraRelativeTransform);
+	FirstPersonCameraComponent->bUsePawnControlRotation = true;
+}
+
+void ALabCharacter::TickRevive(float DeltaSeconds)
+{
+	ALabCharacter* R = Reviver.Get();
+	const bool bValid = R && R->IsAliveAndFree() && FVector::Dist(R->GetActorLocation(), GetActorLocation()) <= R->InteractRange + 60.f;
+	if (!bValid)
+	{
+		Reviver.Reset();
+		ReviveProgressServer = 0.f;
+	}
+	else
+	{
+		ReviveProgressServer += DeltaSeconds / FMath::Max(0.1f, ReviveSeconds);
+		if (ReviveProgressServer >= 1.f)
+		{
+			Revive(50.f);
+			return;
+		}
+	}
+	ReviveByte = static_cast<uint8>(FMath::Clamp(ReviveProgressServer, 0.f, 1.f) * 255.f);
+}
+
+bool ALabCharacter::CanInteract(const ALabCharacter* By) const
+{
+	return LifeState == ELabLifeState::Downed && By && By != this && By->IsAliveAndFree();
+}
+
+void ALabCharacter::Interact(ALabCharacter* By)
+{
+	if (CanInteract(By))
+	{
+		Reviver = By; // tiene que quedarse cerca ReviveSeconds
+	}
+}
+
+FText ALabCharacter::GetInteractPrompt(const ALabCharacter* By) const
+{
+	const FString Name = GetPlayerState() ? GetPlayerState()->GetPlayerName() : TEXT("compañero");
+	return FText::FromString(FString::Printf(TEXT("Levantar a %s (quedate cerca)"), *Name));
 }
 
 void ALabCharacter::Tick(float DeltaSeconds)
@@ -112,6 +323,35 @@ void ALabCharacter::Tick(float DeltaSeconds)
 			bFlashlightOn = false; // se agotó
 			ApplyFlashlightState();
 		}
+	}
+
+	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
+	if (HasAuthority() && LifeState == ELabLifeState::Downed)
+	{
+		if (GetBleedOutRemaining() <= 0.f)
+		{
+			LifeState = ELabLifeState::Dead;
+			ReviveByte = 0;
+			Reviver.Reset();
+			UE_LOG(LogLabrynn, Log, TEXT("%s murió desangrado"), *GetName());
+		}
+		else
+		{
+			TickRevive(DeltaSeconds);
+		}
+	}
+	if (HasAuthority() && bRagdoll)
+	{
+		const FVector Pelvis = GetMesh()->GetSocketLocation(FName("pelvis"));
+		SetActorLocation(Pelvis + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), false, nullptr, ETeleportType::None);
+	}
+
+	// Dueño caído: cámara afuera, mirando al propio cuerpo.
+	if (bRagdoll && IsLocallyControlled())
+	{
+		const FVector Pelvis = GetMesh()->GetSocketLocation(FName("pelvis"));
+		const FVector CamPos = Pelvis + FVector(-160.f, -60.f, 170.f);
+		FirstPersonCameraComponent->SetWorldLocationAndRotation(CamPos, (Pelvis - CamPos).Rotation());
 	}
 
 	// Todas las máquinas: intensidad según batería, con parpadeo cosmético cuando queda poca.
@@ -243,11 +483,18 @@ ALabCharacter* ALabCharacter::FindTeammateInFront() const
 
 void ALabCharacter::InteractInput()
 {
-	ServerInteract();
+	if (IsAliveAndFree())
+	{
+		ServerInteract();
+	}
 }
 
 void ALabCharacter::ServerInteract_Implementation()
 {
+	if (!IsAliveAndFree())
+	{
+		return;
+	}
 	if (AActor* Target = FindBestInteractable())
 	{
 		Cast<ILabInteractable>(Target)->Interact(this);
@@ -339,6 +586,6 @@ void ALabCharacter::ApplyFlashlightState()
 {
 	if (Flashlight)
 	{
-		Flashlight->SetVisibility(bHasFlashlight && bFlashlightOn && !IsCarryingRelic());
+		Flashlight->SetVisibility(bHasFlashlight && bFlashlightOn && !IsCarryingRelic() && IsAliveAndFree());
 	}
 }

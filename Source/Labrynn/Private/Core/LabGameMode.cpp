@@ -6,6 +6,7 @@
 #include "UI/LabHUD.h"
 #include "Interact/LabRelic.h"
 #include "TimerManager.h"
+#include "EngineUtils.h"
 #include "Maze/LabMaze.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -92,6 +93,34 @@ void ALabGameMode::StartPlay()
 			}
 		}), 26.f, false);
 	}
+
+	// Prueba automática del rescate: tira al jugador 2 (cliente) y el host lo levanta.
+	static bool bAutoDownDone = false;
+	if (!bAutoDownDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoDown")))
+	{
+		bAutoDownDone = true;
+		FTimerHandle T1, T2;
+		GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+			{
+				if (!It->IsLocallyControlled()) { It->KnockDown(FVector(0.f, 250.f, 350.f)); break; }
+			}
+		}), 25.f, false);
+		GetWorldTimerManager().SetTimer(T2, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			ALabCharacter* Host = PC ? Cast<ALabCharacter>(PC->GetPawn()) : nullptr;
+			for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+			{
+				if (*It != Host && Host && !It->IsAliveAndFree())
+				{
+					Host->SetActorLocation(It->GetActorLocation() + FVector(-120.f, 0.f, 0.f));
+					It->Interact(Host);
+				}
+			}
+		}), 31.f, false);
+	}
 #endif
 }
 
@@ -114,7 +143,32 @@ void ALabGameMode::CheckWinLose()
 {
 	ALabGameState* GS = GetGameState<ALabGameState>();
 	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
-	if (!GS || !Maze || !Relic || GS->GetPhase() != ELabPhase::Escape)
+	if (!GS || !Maze || GS->GetPhase() == ELabPhase::Won || GS->GetPhase() == ELabPhase::Lost)
+	{
+		return;
+	}
+
+	// Derrota: no queda nadie en pie.
+	int32 Players = 0, Standing = 0;
+	for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+	{
+		if (It->GetController())
+		{
+			++Players;
+			Standing += It->IsAliveAndFree() ? 1 : 0;
+		}
+	}
+	if (Players > 0 && Standing == 0)
+	{
+		GS->SetPhase(ELabPhase::Lost);
+		GetWorldTimerManager().SetTimer(RestartTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			GetWorld()->ServerTravel(TEXT("?Restart"), false);
+		}), RestartDelay, false);
+		return;
+	}
+
+	if (!Relic || GS->GetPhase() != ELabPhase::Escape)
 	{
 		return;
 	}

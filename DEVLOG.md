@@ -172,6 +172,24 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   `Fase -> Won` → `ProcessServerTravel: ?Restart`, y el cliente **viaja con el host** y reconstruye el laberinto. ✅
 - Con esto, el Hito 2 ("jugable de principio a fin") queda cumplido en su forma mínima. Faltan el rescate y las trampas.
 
+**16:25 · Rescate ✅**
+- `ELabLifeState` (Alive / Downed / Dead) replicado, con salud y `TakeDamage`. `KnockDown(impulso)` sirve para las trampas.
+- **Caído:** ragdoll en todas las máquinas, con el empujón replicado. **La cámara del caído sale del cuerpo y lo muestra
+  desparramado.** Se le cae la reliquia. Se desangra en 30 s y pasa a **Muerto** (solo lo revive el Corazón, el sábado).
+- **Levantar:** E sobre el compañero caído y quedarse cerca 3 s, con barra replicada. Lo deja con 50 de salud.
+- HUD: "ESTÁS EN EL PISO – ¡gritale a alguien que te levante! (Ns)", y marcadores **"! AYUDA Ns"** sobre los caídos que
+  se ven a través de las paredes (para coordinarse).
+- **Derrota** si nadie queda en pie, y reinicio de ronda.
+- Prueba `-LabAutoDown`: se encontraron y corrigieron **3 bugs**, todos vistos en capturas:
+  1. El cuerpo terminaba **a 2 km**: el mesh seguía adjunto a la cápsula, el servidor movía la cápsula a la pelvis
+     y el ragdoll se movía con ella (bucle). Arreglo: desadjuntar el mesh al caer.
+  2. En el cliente dueño, la cápsula (quieta) **sostenía el ragdoll de pie** desde adentro. Arreglo: la cápsula ignora
+     `PhysicsBody` mientras está caído.
+  3. El dueño **no veía su propio cuerpo**. En UE 5.8 los primitivos `WorldSpaceRepresentation` nunca se muestran al dueño,
+     aunque `OwnerNoSee=false`. Arreglo: quitar la marca durante el ragdoll.
+- Resultado: `C_1 cayó` → el host lo levanta → `C_1 se levantó (salud 50)`. En la captura del caído se ve
+  boca abajo con los brazos abiertos. ✅
+
 ---
 
 ## 📋 RESUMEN PARA ENZO (14:45)

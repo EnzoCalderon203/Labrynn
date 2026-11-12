@@ -73,6 +73,13 @@ void ALabHUD::DrawHUD()
 			DrawText(FString::Printf(TEXT("FAROL  aceite %3d%%  - %s"), FMath::RoundToInt(Oil * 100.f), *State), Col, X, Y, Font, 1.f);
 			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, Y + 22.f, 180.f, 7.f);
 			DrawRect(Col, X, Y + 22.f, 180.f * Oil, 7.f);
+			if (L->IsRepelling())
+			{
+				const FString R = TEXT("¡Lo estás conteniendo!  (el aceite se va rápido)");
+				float RW, RH;
+				GetTextSize(R, RW, RH, Font, 1.6f);
+				DrawText(R, FLinearColor(1.f, 0.7f, 0.2f), (Canvas->ClipX - RW) * 0.5f, Canvas->ClipY * 0.45f, Font, 1.6f);
+			}
 			if (L->IsRelighting())
 			{
 				DrawRect(FLinearColor(1.f, 0.9f, 0.5f), X + 190.f, Y + 22.f, 80.f * L->GetRelightProgress(), 7.f);

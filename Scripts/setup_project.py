@@ -88,6 +88,7 @@ def main():
     ensure_map("L_Menu", unreal.LabMenuGameMode.static_class())
     ensure_data_asset("DA_Stamina", "/Game/Labrynn/Core", unreal.LabStaminaSettings)
     ensure_data_asset("DA_Visuals", "/Game/Labrynn/Core", unreal.LabVisualSettings)
+    ensure_data_asset("DA_Minotaur", "/Game/Labrynn/Core", unreal.LabMinotaurSettings)
 
     ch = describe_bp("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter")
     if ch is not None:

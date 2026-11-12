@@ -64,6 +64,13 @@ public:
 	/** 0..1 del reencendido en curso (para el HUD). */
 	float GetRelightProgress() const;
 
+	/** Solo servidor. Este farol está conteniendo al Minotauro: gasta aceite ×Multiplier durante Seconds. */
+	void SetRepelling(float Seconds, float Multiplier);
+
+	/** ¿Está conteniendo al Minotauro ahora? (replicado, para el HUD del portador) */
+	UFUNCTION(BlueprintPure, Category = "Lab|Lantern")
+	bool IsRepelling() const;
+
 	// --- Ajustes (Blueprint hijo) ---
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Lantern")
 	float LightIntensity = 900.f;
@@ -118,6 +125,11 @@ protected:
 
 	UPROPERTY(Replicated)
 	uint8 OilByte = 255;
+
+	UPROPERTY(Replicated)
+	float RepelUntilServerTime = 0.f;
+
+	float RepelDrainMultiplier = 1.f;
 
 	UFUNCTION()
 	void OnRep_Holder(ALabCharacter* OldHolder);

@@ -336,6 +336,16 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   (`musgo en 40 celdas, 9 haces`). ✅
 - Calibración (dos capturas, imprescindibles para juzgar la oscuridad): con +1,4 EV de adaptación el pasillo quedaba **negro**. Con **+2,8 EV**,
   110 celdas de musgo y brillo personal de 3,2 m se distinguen la pared cercana y la forma del pasillo, pero no los detalles. Ese quedó como valor por defecto.
+**18:53 · Diseño v2, punto 2: El Minotauro le teme al fuego ✅**
+- **`DA_Minotaur`** (`ULabMinotaurSettings`): velocidades, ataque, oído y fuego. Ya no hay valores sueltos en la clase.
+- Si un **farol encendido** está a < 4 m y **por delante** (entre él y su objetivo: coseno > 0,2), el Minotauro **frena, retrocede 3 s** y después
+  hace **BFS evitando las celdas con faroles encendidos**. Si no hay otro camino, igual va y el fuego lo vuelve a frenar.
+- Mientras lo repele, ese farol gasta **aceite ×4**. HUD del portador: **"¡Lo estás conteniendo!"**. Sonido `FireFearSound` para Luis.
+- Herramienta de prueba: `-LabKeysHost=` / `-LabKeysClient=` (guiones de teclas por rol). La prueba anterior se arruinó porque los dos procesos
+  compartían el guion y la segunda E soltaba el farol y la reliquia.
+- **Prueba con input real:** el host toma el farol con **E**, el cliente toma la reliquia con **E** (empieza el escape) y el host habla con **V**.
+  Resultado en ~70 s: `oyó 'Voz'` → `¡el fuego de C_0 lo frena! retrocede 3 s` → `busca otro camino` → … **6 frenadas y 0 atrapados**.
+  Aceite del farol al **59 %** (sin el ×4 habría quedado en ~77 %). ✅
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

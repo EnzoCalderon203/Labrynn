@@ -73,8 +73,10 @@ void ALabPlayerController::TickKeyScript()
 	{
 		bKeyScriptParsed = true;
 		KeyScriptStart = GetWorld()->GetTimeSeconds();
+		// -LabKeysHost= / -LabKeysClient= permiten guiones distintos por rol; -LabKeys= vale para ambos.
 		FString Script;
-		if (FParse::Value(FCommandLine::Get(), TEXT("LabKeys="), Script))
+		const TCHAR* RoleKey = GetNetMode() == NM_Client ? TEXT("LabKeysClient=") : TEXT("LabKeysHost=");
+		if (FParse::Value(FCommandLine::Get(), RoleKey, Script) || FParse::Value(FCommandLine::Get(), TEXT("LabKeys="), Script))
 		{
 			TArray<FString> Parts;
 			Script.ParseIntoArray(Parts, TEXT("|"));

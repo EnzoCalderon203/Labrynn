@@ -60,6 +60,21 @@ void ALabLantern::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ALabLantern, bRelighting);
 	DOREPLIFETIME(ALabLantern, RelightEndServerTime);
 	DOREPLIFETIME(ALabLantern, OilByte);
+	DOREPLIFETIME(ALabLantern, RepelUntilServerTime);
+}
+
+void ALabLantern::SetRepelling(float Seconds, float Multiplier)
+{
+	if (HasAuthority())
+	{
+		RepelUntilServerTime = FMath::Max(RepelUntilServerTime, ServerNow() + Seconds);
+		RepelDrainMultiplier = Multiplier;
+	}
+}
+
+bool ALabLantern::IsRepelling() const
+{
+	return bLit && ServerNow() < RepelUntilServerTime;
 }
 
 void ALabLantern::BeginPlay()
@@ -93,7 +108,8 @@ void ALabLantern::Tick(float DeltaSeconds)
 		// Aceite.
 		if (bLit && OilServer > 0.f)
 		{
-			OilServer = FMath::Max(0.f, OilServer - DeltaSeconds / OilSeconds);
+			const float Drain = IsRepelling() ? RepelDrainMultiplier : 1.f; // conteniendo al Minotauro: gasta ×4
+			OilServer = FMath::Max(0.f, OilServer - Drain * DeltaSeconds / OilSeconds);
 			OilByte = static_cast<uint8>(FMath::CeilToInt(OilServer * 255.f));
 			if (OilServer <= 0.f)
 			{

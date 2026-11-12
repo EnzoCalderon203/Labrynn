@@ -55,6 +55,9 @@ ALabCharacter::ALabCharacter()
 void ALabCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+#if !UE_BUILD_SHIPPING
+	FParse::Value(FCommandLine::Get(), TEXT("LabFlashlight="), FlashlightIntensity); // calibración rápida
+#endif
 	Flashlight->SetIntensity(FlashlightIntensity);
 	Flashlight->SetAttenuationRadius(FlashlightRange);
 	ApplyFlashlightState();

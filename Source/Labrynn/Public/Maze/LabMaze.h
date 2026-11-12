@@ -81,6 +81,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze|Art")
 	TObjectPtr<UMaterialInterface> CeilingMaterial;
 
+	/** Exposición manual (EV). Más alto = más claro. Ajustar junto con la intensidad de la linterna. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze|Art")
+	float ExposureBias = 4.f;
+
 	/** Luz cálida y tenue del hall de entrada. */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze|Art")
 	float EntranceLightIntensity = 1500.f;
@@ -103,6 +107,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
 	TObjectPtr<UInstancedStaticMeshComponent> Ceilings;
+
+	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")
+	TObjectPtr<class UPostProcessComponent> PostProcess;
 
 	/** Pared de la salida, separada para poder quitarla. */
 	UPROPERTY(VisibleAnywhere, Category = "Lab|Maze")

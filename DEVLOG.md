@@ -65,3 +65,74 @@ Zona horaria de las entradas: Paraguay (UTC-3).
 - Git: repo local inicializado con identidad **local**, sin tocar la configuración global
   (`Enzo Calderón` / noreply de GitHub `232564110+EnzoCalderon203@…`).
   - Para el push se configuró `gh auth git-credential` solo en este repo.
+
+**14:30 · Proyecto Labrynn creado** (Claude, en modo autónomo)
+- Plantilla First Person de UE 5.8 (variante C++), **sin Starter Content**. Claude la copió a mano, igual que lo hace el editor:
+  contenido `FirstPerson/` y los paquetes compartidos `Characters`, `Input` y `LevelPrototyping`.
+  Se dejaron afuera las variantes Horror y Shooter (no se usan y pesan).
+- **Decisión: clases propias con prefijo `Lab`** (`ALabCharacter`, `ALabPlayerController`, `ALabCameraManager`, `ALabGameMode`,
+  `ALabGameState`) en lugar de las `TP_FirstPerson*` de la plantilla.
+  - Los Blueprints de la plantilla siguen funcionando gracias a **CoreRedirects** en `DefaultEngine.ini`.
+  - Se mantienen los mismos nombres de propiedades y componentes, así que conservan meshes, animaciones e input.
+  - Motivo: código con nombres coherentes desde el día 1 sin tener que tocar ningún `.uasset` a mano.
+  - Claude lo verificó con un script de Python del editor (`Scripts/setup_project.py`):
+    `BP_FirstPersonCharacter` → `ALabCharacter`, cuerpo `SKM_Manny_Simple`+`ABP_Unarmed`, brazos `ABP_FP_Copy`.
+- Mapa `L_Labrynn` vacío, creado por script. El laberinto se genera en runtime.
+- Primera compilación: **Result: Succeeded** (44 s).
+
+**14:30 · Laberinto procedural replicado**
+- `FLabMazeLayout::Generate(seed)`: recursive backtracker iterativo con `FRandomStream`, sala central 3x3 con 2 puertas
+  en lados al azar, ~8 % de paredes extra abiertas (loops), entrada al sur y salida al norte (cerrada hasta la fase de escape).
+- `ALabMaze`: paredes, piso y techo con Instanced Static Mesh (un cubo escalado); hall de entrada; luces tenues guía.
+  **No se replica**: cada máquina construye el suyo.
+- `ALabGameState::MazeSeed` (`ReplicatedUsing`): el host elige la seed (o `?Seed=N` en la URL) y los clientes construyen en `OnRep`.
+- `ALabGameMode::RestartPlayer`: spawnea a los jugadores en el hall de entrada, mirando hacia el laberinto (máximo 4).
+- Linterna replicada (tecla F): `bFlashlightOn` con RepNotify y RPC al servidor, con predicción local.
+
+**14:31 · Prueba de red automática ✅** (Claude levantó host y cliente sin ventana: `Scripts/nettest.ps1 -NoRender`)
+- Cliente: `Welcomed by server` → host: `Join succeeded`.
+- **Misma seed y mismo checksum en ambos**: `seed=2043047763 … checksum=9F15578E`.
+- En el cliente, su personaje es `AutonomousProxy` y el del host es `SimulatedProxy` con `Body=SKM_Manny_Simple`
+  (**ve al otro con el cuerpo completo**).
+
+**14:35 · Prueba con capturas.** Claude agregó `-LabAutoShot=N` y `-LabAutoQuit`, que solo existen en builds de desarrollo:
+el jugador mira al compañero, saca una captura y cierra el juego. Así puede ver el juego sin que nadie esté en la PC.
+- Bug encontrado: en el cliente la pantalla salía negra. Log: *"Calling SetStaticMesh on …Walls but Mobility is Static"*.
+  El cliente construye el laberinto después de BeginPlay y Unreal no deja asignar meshes a componentes Static.
+  Arreglo: movilidad Movable. Sin luz estática, no tiene costo.
+- Bug encontrado: con autoexposición el laberinto "a oscuras" se veía blanco. Arreglo: post-proceso con
+  **exposición manual** (`ExposureBias`, +4 por defecto) y viñeta.
+- Materiales de grilla de LevelPrototyping en paredes, piso y techo.
+- El host caminó solo en una prueba: probable drift de un joystick Bluetooth conectado.
+
+**14:42 · 🔴 BLOQUEO: Smart App Control**
+- Windows empezó a bloquear `UnrealEditor-Labrynn.dll` (`GetLastError=4551`, eventos CodeIntegrity 3033/3077).
+  Las primeras cuatro compilaciones sí cargaron. Una recompilación con otro hash también quedó bloqueada.
+- Claude no lo cambió: es configuración del sistema e irreversible. Los pasos están en `PENDIENTES_ENZO.md` (punto 1).
+
+---
+
+## 📋 RESUMEN PARA ENZO (14:45)
+
+**Funciona y está verificado:**
+- Toolchain: VS 2026, MSVC 14.50, SDK 26100 y UE 5.8.4. Un proyecto vacío compiló y se borró.
+- Proyecto `C:\Dev\Labrynn` en C++. Compila. Subido a GitHub (`main`, 3 commits, contenido en LFS).
+- **Hito 1 en red**: dos jugadores (listen server + cliente) en un laberinto procedural con seed replicada.
+  Mismo layout verificado por checksum, y cada uno ve al otro con el cuerpo completo.
+- `CLAUDE.md`, `PLAN.md` (aprobado por Claude según tu indicación), `PROMPT_LUIS.md`, `PENDIENTES_ENZO.md`.
+
+**Falta:**
+- Ver el Hito 1 en PIE y calibrar oscuridad y linterna. **Bloqueado por Smart App Control.**
+- Online por internet (OSS Steam AppID 480). Está planeado para hoy de 17:00 a 20:00.
+  - **Decisión:** Steam con AppID 480.
+    - **Pro:** es gratis, no hay que configurar nada en un portal, y tiene NAT traversal, relay y amigos/invitaciones.
+    - **Contra:** Steam tiene que estar abierto en las dos PCs, 480 es un AppID compartido (hay que filtrar sesiones por una clave propia)
+      y no sirve para un producto final.
+    - EOS se descartó porque requiere configurar un producto en el Developer Portal y un flujo de login: demasiado para una jam.
+    - Fallback: IP directa (o una VPN tipo Tailscale) con `open <ip>`.
+
+**Lo que tenés que hacer al volver** (detalle en `PENDIENTES_ENZO.md`):
+1. Decidir si apagás **Smart App Control**. Sin eso no se puede abrir el proyecto.
+2. Probar en PIE con 2 jugadores como Listen Server y decirme qué te parece la oscuridad.
+3. Agregar a Luis al repo y pasarle `PROMPT_LUIS.md`.
+4. Revisar la cuota de LFS en GitHub (135 MB usados).

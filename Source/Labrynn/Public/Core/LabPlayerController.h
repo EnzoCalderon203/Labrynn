@@ -33,4 +33,13 @@ protected:
 	/** Se mantiene por compatibilidad con el Blueprint de la plantilla (no se usa en PC). */
 	UPROPERTY(EditAnywhere, Category = "Input|Touch Controls")
 	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
+
+#if !UE_BUILD_SHIPPING
+private:
+	/** Depuración: -LabAutoShot=N saca captura a los N s (mirando al compañero más cercano); -LabAutoQuit cierra después. */
+	void SetupAutoShot();
+	void DoAutoShot();
+	FTimerHandle AutoShotTimer;
+	FTimerHandle AutoQuitTimer;
+#endif
 };

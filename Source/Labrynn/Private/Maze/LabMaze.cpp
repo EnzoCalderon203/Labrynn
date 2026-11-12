@@ -2,6 +2,7 @@
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/PostProcessComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
@@ -13,7 +14,9 @@ namespace
 	{
 		UInstancedStaticMeshComponent* C = Owner->CreateDefaultSubobject<UInstancedStaticMeshComponent>(Name);
 		C->SetupAttachment(Parent);
-		C->SetMobility(EComponentMobility::Static);
+		// Movable: en los clientes el laberinto se construye después de BeginPlay, y
+		// SetStaticMesh falla en componentes Static ya registrados. (Sin luz estática no hay costo extra.)
+		C->SetMobility(EComponentMobility::Movable);
 		C->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 		C->SetCanEverAffectNavigation(false);
 		return C;
@@ -26,8 +29,14 @@ ALabMaze::ALabMaze()
 	bReplicates = false; // se construye localmente en cada máquina
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	Root->SetMobility(EComponentMobility::Static);
+	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
+
+	// Exposición fija: sin esto la auto-exposición "aclara" la oscuridad y arruina el juego.
+	PostProcess = CreateDefaultSubobject<UPostProcessComponent>(TEXT("DarknessPostProcess"));
+	PostProcess->SetupAttachment(Root);
+	PostProcess->bUnbound = true;
+	PostProcess->Priority = -1.f; // un volumen del mapa (Luis) puede pisarlo
 
 	Walls = MakeISM(this, Root, TEXT("Walls"));
 	Floors = MakeISM(this, Root, TEXT("Floors"));
@@ -47,6 +56,14 @@ ALabMaze::ALabMaze()
 		FloorMaterial = MatFinder.Object;
 		CeilingMaterial = MatFinder.Object;
 	}
+
+	// Materiales de grilla (LevelPrototyping, contenido de la plantilla): ayudan a percibir distancia.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WallGrid(TEXT("/Game/LevelPrototyping/Materials/MI_PrototypeGrid_Gray_02.MI_PrototypeGrid_Gray_02"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> FloorGrid(TEXT("/Game/LevelPrototyping/Materials/MI_PrototypeGrid_TopDark.MI_PrototypeGrid_TopDark"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> CeilGrid(TEXT("/Game/LevelPrototyping/Materials/MI_PrototypeGrid_Gray.MI_PrototypeGrid_Gray"));
+	if (WallGrid.Succeeded())  { WallMaterial = WallGrid.Object; }
+	if (FloorGrid.Succeeded()) { FloorMaterial = FloorGrid.Object; }
+	if (CeilGrid.Succeeded())  { CeilingMaterial = CeilGrid.Object; }
 }
 
 void ALabMaze::BeginPlay()
@@ -69,6 +86,19 @@ void ALabMaze::Build(int32 InSeed)
 		C->SetStaticMesh(BlockMesh);
 		C->ClearInstances();
 	}
+#if !UE_BUILD_SHIPPING
+	FParse::Value(FCommandLine::Get(), TEXT("LabExposure="), ExposureBias); // calibración rápida
+#endif
+	FPostProcessSettings& PP = PostProcess->Settings;
+	PP.bOverride_AutoExposureMethod = true;
+	PP.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+	PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true;
+	PP.AutoExposureApplyPhysicalCameraExposure = false;
+	PP.bOverride_AutoExposureBias = true;
+	PP.AutoExposureBias = ExposureBias;
+	PP.bOverride_VignetteIntensity = true;
+	PP.VignetteIntensity = 0.6f;
+
 	Walls->SetMaterial(0, WallMaterial);
 	ExitDoor->SetMaterial(0, WallMaterial);
 	Floors->SetMaterial(0, FloorMaterial);

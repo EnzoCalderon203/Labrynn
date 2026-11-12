@@ -1,4 +1,4 @@
-# DEVLOG — Labrynn (2026 Epic AI MegaJam)
+﻿# DEVLOG — Labrynn (2026 Epic AI MegaJam)
 
 Equipo: Enzo y Luis. Asistente de IA: Claude Code (modelos Claude Sonnet 5.5 / Opus 5.5).
 Zona horaria de las entradas: Paraguay (UTC-3).
@@ -126,7 +126,7 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Resultado: `[AutoShot] … mira a BP_FirstPersonCharacter_C_1 (dist 192)` en **ambos** lados. En las capturas,
   cada uno ve al otro con el cuerpo completo, la linterna y la sombra. **Hito 1 cumplido.**
 
-**15:00 · Online por internet: Steam con AppID 480 ✅ (verificado hasta donde se puede con una sola PC)**
+**15:03 · Online por internet: Steam con AppID 480 ✅ (verificado hasta donde se puede con una sola PC)**
 - `ULabSessionSubsystem` (GameInstanceSubsystem): Crear, Buscar, Unirse, Unirse por IP e invitaciones del overlay de Steam.
   - Como el AppID 480 lo comparten miles de juegos, se filtra por la clave `LABRYNN_BUILD=labrynn-jam26-v1`.
   - Si Steam no está o falla (`-nosteam`, Steam cerrado, segunda instancia en la misma PC), el motor cae solo a
@@ -143,7 +143,7 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   como "Spacewar" (AppID 480). Al empaquetar hay que poner `steam_appid.txt` con `480` junto al exe (queda en PLAN.md, domingo).
 - Riesgo: la entrega con AppID 480 obliga a los jurados a tener Steam abierto para jugar online. Hay fallback por LAN/IP.
 
-**15:25 · Luz compartida ✅** (adelanto del viernes)
+**15:09 · Luz compartida ✅** (adelanto del viernes)
 - **Decisión de diseño:** solo **1 de cada 2 jugadores** empieza con linterna (`FlashlightEveryN=2`). Con 2 jugadores
   hay una sola linterna, así que el grupo tiene que moverse junto. Todos tienen un **brillo personal** muy tenue (radio 2,2 m)
   para ver la silueta de los compañeros cercanos, pero no alcanza para explorar.
@@ -157,7 +157,7 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Aprendizaje: con Steam activo, el host escucha por **SteamSockets** y no por IP. Para "Unirse por IP", el host tiene que abrir
   el juego con `-nosteam`. Las pruebas locales de `nettest.ps1` ahora usan siempre `-nosteam`.
 
-**15:50 · Reliquia, fase de escape y victoria ✅ (el core loop se puede jugar de principio a fin)**
+**15:16 · Reliquia, fase de escape y victoria ✅ (el core loop se puede jugar de principio a fin)**
 - `ILabInteractable` (tecla **E**): el personaje elige el interactuable más cercano frente a la cámara. El cliente lo usa para el
   texto del HUD; el servidor lo vuelve a calcular y valida en `ServerInteract` (el cliente no elige el objetivo).
 - `ALabRelic`: cono que brilla en celeste y **sirve de fuente de luz** para el grupo. Quien la carga camina al **55 %** de velocidad y
@@ -172,7 +172,9 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   `Fase -> Won` → `ProcessServerTravel: ?Restart`, y el cliente **viaja con el host** y reconstruye el laberinto. ✅
 - Con esto, el Hito 2 ("jugable de principio a fin") queda cumplido en su forma mínima. Faltan el rescate y las trampas.
 
-**16:25 · Rescate ✅**
+> Nota (15:25): las horas de las entradas de luz, reliquia y rescate se corrigieron con las horas reales de los commits; Claude había anotado estimaciones.
+
+**15:25 · Rescate ✅**
 - `ELabLifeState` (Alive / Downed / Dead) replicado, con salud y `TakeDamage`. `KnockDown(impulso)` sirve para las trampas.
 - **Caído:** ragdoll en todas las máquinas, con el empujón replicado. **La cámara del caído sale del cuerpo y lo muestra
   desparramado.** Se le cae la reliquia. Se desangra en 30 s y pasa a **Muerto** (solo lo revive el Corazón, el sábado).

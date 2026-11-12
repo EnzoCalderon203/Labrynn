@@ -398,6 +398,18 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - Host **mantiene E** → `estira la mano`. Cliente **Espacio + E** → `se agarró` → `subió` (el cliente queda arriba, z=248).
   - **Solo E sin saltar → no se agarra.**
   - Con el host herido (15 de stamina): `no aguanta más y suelta` → `se soltó y cae`. ✅
+**19:28 · Diseño v2, punto 6: Cargar a un compañero caído ✅**
+- Sobre un caído: **tocar E = levantarlo** (como antes); **mantener E 0,6 s = cargarlo al hombro**. Para eso se mide en el cliente cuánto se mantiene E.
+  **E otra vez = soltarlo** (vuelve al ragdoll, al lado).
+- El cargado: su cápsula sin colisión queda pegada al que lo carga y el cuerpo va cruzado sobre el hombro (**pose provisoria, no verificada con captura**).
+  **Sigue viendo desde su cuerpo**, **sigue hablando** (antes un caído no podía hablar; corregido) y se sigue desangrando.
+  Si un compañero lo levanta o se usa el Corazón, primero lo bajan.
+- El que carga: va a ×0,5 de velocidad, gasta 6 de stamina por segundo y **suelta el farol** al empezar. No puede tomar la reliquia, el farol ni esconderse.
+  Si se queda sin aire, lo suelta; **si cae él, caen los dos**. Valores en `DA_Gameplay`.
+- Mientras carga a alguien, no cuenta como "levantándolo" (antes, mantener E también habría arrancado el levantar).
+- **Prueba con input real:** el cliente cae; el host **mantiene E** → `carga al hombro` → **W** → velocidad 225 y stamina 92 → 56 %
+  → **E** → `suelta`. El cliente caído **habla con V** y su voz hace ruido (0,3). ✅
+- No probado aparte (lógica directa): "si cae él, caen los dos" y "llevarlo al Corazón".
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

@@ -78,6 +78,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lab|Voice")
 	bool IsTalking() const { return bTalking; }
 
+	// --- Cargar a un caído ---
+	UFUNCTION(BlueprintPure, Category = "Lab|Help")
+	bool IsCarryingBody() const { return CarriedBody != nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = "Lab|Help")
+	bool IsBeingCarried() const { return CarriedBy != nullptr; }
+
+	/** Solo servidor. */
+	void StartCarry(ALabCharacter* Body);
+	/** Solo servidor. Suelta al cargado en el piso (sigue caído). */
+	void DropCarried();
+
 	// --- Pie de banco y dar la mano ---
 	UFUNCTION(BlueprintPure, Category = "Lab|Help")
 	bool IsReaching() const { return bReaching; }
@@ -167,6 +179,26 @@ protected:
 	/** Hasta qué hora del servidor está en una corriente de aire (no se puede encender). */
 	UPROPERTY(Replicated)
 	float GasUntilServerTime = 0.f;
+
+	// Cargar a un caído.
+	UPROPERTY(Replicated)
+	TObjectPtr<ALabCharacter> CarriedBody;
+
+	UPROPERTY(ReplicatedUsing = OnRep_CarriedBy)
+	TObjectPtr<ALabCharacter> CarriedBy;
+
+	UFUNCTION()
+	void OnRep_CarriedBy();
+	void ApplyCarriedPose();
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartCarry(ALabCharacter* Body);
+	void TickCarryHold();
+
+	/** E mantenida (cliente): para distinguir tocar (levantar) de mantener (cargar). */
+	bool bInteractHeld = false;
+	float InteractPressTime = 0.f;
+	TWeakObjectPtr<ALabCharacter> InteractHoldTarget;
 
 	// Dar la mano (arriba: mantiene E; abajo: salta + E).
 	UPROPERTY(ReplicatedUsing = OnRep_Reaching)

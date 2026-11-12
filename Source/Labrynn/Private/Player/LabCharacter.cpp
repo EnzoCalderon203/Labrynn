@@ -146,6 +146,8 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, bHiding);
 	DOREPLIFETIME(ALabCharacter, bReaching);
 	DOREPLIFETIME(ALabCharacter, Pull);
+	DOREPLIFETIME(ALabCharacter, CarriedBody);
+	DOREPLIFETIME(ALabCharacter, CarriedBy);
 }
 
 // ---------------------------------------------------------------- Escondites
@@ -312,7 +314,7 @@ void ALabCharacter::TalkReleased()
 
 void ALabCharacter::ServerSetTalking_Implementation(bool bTalk)
 {
-	bTalking = bTalk && IsAliveAndFree();
+	bTalking = bTalk; // también caído o cargado (la voz se procesa según el estado)
 }
 
 void ALabCharacter::TickVoice(float DeltaSeconds)
@@ -434,6 +436,10 @@ float ALabCharacter::GetDesiredMaxSpeed(bool bWantsSprint) const
 	{
 		Speed = S->SprintSpeed;
 	}
+	if (CarriedBody)
+	{
+		Speed *= GetGameplaySettings()->CarrySpeedMultiplier; // compañero al hombro: lento
+	}
 	if (IsCarryingRelic())
 	{
 		Speed *= S->RelicSpeedMultiplier;
@@ -490,6 +496,15 @@ void ALabCharacter::TickStamina(float DeltaSeconds)
 	if (IsCarryingRelic())
 	{
 		SpendStamina(S->RelicDrainPerSecond * DeltaSeconds);
+	}
+	if (CarriedBody)
+	{
+		SpendStamina(GetGameplaySettings()->CarryStaminaPerSecond * DeltaSeconds);
+		if (bExhausted)
+		{
+			UE_LOG(LogLabrynn, Log, TEXT("Cargar: %s se quedó sin aire y suelta a %s"), *GetName(), *CarriedBody->GetName());
+			DropCarried();
+		}
 	}
 
 	// Jadeo: ruido periódico (lo puede escuchar una IA con AI Perception: Hearing) y fin del jadeo.
@@ -622,6 +637,7 @@ void ALabCharacter::KnockDown(const FVector& Impulse)
 		L->SetHolder(nullptr); // y el farol (queda encendido en el piso, al lado del cuerpo)
 	}
 	ExitHiding(); // si estaba escondido, sale
+	DropCarried(); // si cargaba a alguien, caen los dos
 
 	const ELabLifeState Old = LifeState;
 	LifeState = ELabLifeState::Downed;
@@ -645,6 +661,11 @@ void ALabCharacter::Revive(float WoundsAfter)
 	if (LifeState == ELabLifeState::Alive)
 	{
 		return;
+	}
+	// Si lo estaban cargando, primero lo bajan.
+	if (CarriedBy)
+	{
+		CarriedBy->DropCarried();
 	}
 	// Si está en el fondo de un foso, sale a la celda vecina abierta.
 	if (GetActorLocation().Z < -100.f)
@@ -773,7 +794,7 @@ void ALabCharacter::StopRagdoll()
 void ALabCharacter::TickRevive(float DeltaSeconds)
 {
 	ALabCharacter* R = Reviver.Get();
-	const bool bValid = R && R->IsAliveAndFree() && FVector::Dist2D(R->GetActorLocation(), GetActorLocation()) <= R->InteractRange + 160.f;
+	const bool bValid = R && R->IsAliveAndFree() && !R->IsCarryingBody() && FVector::Dist2D(R->GetActorLocation(), GetActorLocation()) <= R->InteractRange + 160.f;
 	if (!bValid)
 	{
 		Reviver.Reset();
@@ -924,6 +945,7 @@ bool ALabCharacter::CanStartReach() const
 
 void ALabCharacter::InteractReleased()
 {
+	bInteractHeld = false;
 	if (bReaching)
 	{
 		ServerSetReaching(false);
@@ -1051,6 +1073,10 @@ void ALabCharacter::Tick(float DeltaSeconds)
 	TickVoice(DeltaSeconds);
 	TickEyes(DeltaSeconds);
 	TickHelp(DeltaSeconds);
+	if (IsLocallyControlled())
+	{
+		TickCarryHold();
+	}
 
 	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
 	if (HasAuthority() && LifeState == ELabLifeState::Downed)
@@ -1074,7 +1100,7 @@ void ALabCharacter::Tick(float DeltaSeconds)
 	}
 
 	// Dueño caído: cámara afuera, mirando al propio cuerpo.
-	if (bRagdoll && IsLocallyControlled())
+	if ((bRagdoll || CarriedBy) && IsLocallyControlled()) // caído o al hombro: ve desde su cuerpo
 	{
 		const FVector Pelvis = GetMesh()->GetSocketLocation(FName("pelvis"));
 		const FVector CamPos = Pelvis + FVector(-160.f, -60.f, 170.f);
@@ -1199,12 +1225,106 @@ void ALabCharacter::InteractInput()
 		return;
 	}
 	// En un borde, mirando hacia abajo y sin nada que interactuar: E (mantenida) = estirar la mano.
-	if (!bHiding && !FindBestInteractable() && CanStartReach())
+	AActor* Target = bHiding || CarriedBody ? nullptr : FindBestInteractable();
+	if (!bHiding && !CarriedBody && !Target && CanStartReach())
 	{
 		ServerSetReaching(true);
 		return;
 	}
+	// Sobre un caído: tocar E = levantar; mantener E = cargarlo (lo resuelve TickCarryHold).
+	bInteractHeld = true;
+	InteractPressTime = GetWorld()->GetTimeSeconds();
+	ALabCharacter* Body = Cast<ALabCharacter>(Target);
+	InteractHoldTarget = (Body && !Body->IsAliveAndFree()) ? Body : nullptr;
 	ServerInteract();
+}
+
+void ALabCharacter::TickCarryHold()
+{
+	ALabCharacter* Body = InteractHoldTarget.Get();
+	if (!bInteractHeld || !Body || CarriedBody)
+	{
+		return;
+	}
+	if (GetWorld()->GetTimeSeconds() - InteractPressTime >= GetGameplaySettings()->CarryHoldSeconds)
+	{
+		bInteractHeld = false;
+		InteractHoldTarget.Reset();
+		ServerStartCarry(Body);
+	}
+}
+
+void ALabCharacter::ServerStartCarry_Implementation(ALabCharacter* Body)
+{
+	if (!Body || Body == this || Body->IsAliveAndFree() || Body->CarriedBy || CarriedBody || !IsAliveAndFree()
+		|| IsCarryingRelic() || bReaching || bHiding || FVector::Dist2D(Body->GetActorLocation(), GetActorLocation()) > InteractRange + 150.f)
+	{
+		return;
+	}
+	StartCarry(Body);
+}
+
+void ALabCharacter::StartCarry(ALabCharacter* Body)
+{
+	check(HasAuthority());
+	if (ALabLantern* L = HeldLantern.Get())
+	{
+		L->SetHolder(nullptr); // con alguien al hombro no hay farol: lo suelta (o lo lleva otro)
+	}
+	Body->Reviver.Reset();
+	CarriedBody = Body;
+	Body->CarriedBy = this;
+	Body->ApplyCarriedPose();
+	UE_LOG(LogLabrynn, Log, TEXT("Cargar: %s carga al hombro a %s"), *GetName(), *Body->GetName());
+}
+
+void ALabCharacter::DropCarried()
+{
+	ALabCharacter* Body = CarriedBody;
+	if (!HasAuthority() || !Body)
+	{
+		return;
+	}
+	CarriedBody = nullptr;
+	Body->CarriedBy = nullptr;
+	Body->ApplyCarriedPose(); // vuelve al ragdoll, al lado
+	const FVector Side = GetActorForwardVector() * 70.f + FVector(0.f, 0.f, 40.f);
+	Body->SetActorLocation(GetActorLocation() + Side, false, nullptr, ETeleportType::TeleportPhysics);
+	UE_LOG(LogLabrynn, Log, TEXT("Cargar: %s suelta a %s"), *GetName(), *Body->GetName());
+}
+
+void ALabCharacter::OnRep_CarriedBy()
+{
+	ApplyCarriedPose();
+}
+
+void ALabCharacter::ApplyCarriedPose()
+{
+	USkeletalMeshComponent* BodyMesh = GetMesh();
+	if (CarriedBy)
+	{
+		// Al hombro: sin física ni colisión, pegado a la cápsula del que carga (pose provisoria, cuerpo cruzado).
+		bRagdoll = false;
+		BodyMesh->SetAllBodiesSimulatePhysics(false);
+		BodyMesh->SetSimulatePhysics(false);
+		BodyMesh->SetCollisionProfileName(TEXT("NoCollision"));
+		BodyMesh->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		BodyMesh->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -10.f), FRotator(0.f, 0.f, 90.f));
+		SetActorEnableCollision(false);
+		AttachToComponent(CarriedBy->GetCapsuleComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		SetActorRelativeLocation(FVector(5.f, -18.f, 85.f));
+	}
+	else
+	{
+		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		SetActorEnableCollision(true);
+		if (!IsAliveAndFree())
+		{
+			BodyMesh->SetRelativeTransform(MeshRelativeTransform);
+			DownImpulse = FVector::ZeroVector;
+			StartRagdoll(); // vuelve a desparramarse en el piso
+		}
+	}
 }
 
 void ALabCharacter::ServerInteract_Implementation()
@@ -1216,6 +1336,11 @@ void ALabCharacter::ServerInteract_Implementation()
 	if (bHiding)
 	{
 		ExitHiding(); // escondido, E solo sirve para salir
+		return;
+	}
+	if (CarriedBody)
+	{
+		DropCarried(); // cargando a alguien, E lo suelta
 		return;
 	}
 	if (AActor* Target = FindBestInteractable())

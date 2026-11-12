@@ -1,4 +1,4 @@
-#include "Interact/LabHidingSpot.h"
+﻿#include "Interact/LabHidingSpot.h"
 
 #include "Player/LabCharacter.h"
 #include "Components/StaticMeshComponent.h"
@@ -65,7 +65,7 @@ void ALabHidingSpot::OnRep_Kind()
 
 bool ALabHidingSpot::CanInteract(const ALabCharacter* By) const
 {
-	return By && By->IsAliveAndFree() && !By->IsCarryingRelic() && (Occupant == nullptr || Occupant == By);
+	return By && By->IsAliveAndFree() && !By->IsCarryingRelic() && !By->IsCarryingBody() && (Occupant == nullptr || Occupant == By);
 }
 
 FText ALabHidingSpot::GetInteractPrompt(const ALabCharacter* By) const

@@ -1,4 +1,4 @@
-#include "Interact/LabRelic.h"
+﻿#include "Interact/LabRelic.h"
 
 #include "Player/LabCharacter.h"
 #include "Core/LabGameState.h"
@@ -53,7 +53,7 @@ void ALabRelic::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 
 bool ALabRelic::CanInteract(const ALabCharacter* By) const
 {
-	return By && By->IsAliveAndFree() && (Carrier == nullptr || Carrier == By);
+	return By && By->IsAliveAndFree() && !By->IsCarryingBody() && (Carrier == nullptr || Carrier == By);
 }
 
 FText ALabRelic::GetInteractPrompt(const ALabCharacter* By) const

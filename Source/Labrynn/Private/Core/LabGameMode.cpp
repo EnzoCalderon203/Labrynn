@@ -360,6 +360,41 @@ void ALabGameMode::StartPlay()
 		}
 	}
 
+	// -LabDownClient=N: tira al primer cliente; -LabTeleportToClient=M: acomoda al host al lado de su cuerpo, mirándolo.
+	{
+		float DownAt = 0.f, ToAt = 0.f;
+		auto FindClientPawn = [this]() -> ALabCharacter*
+		{
+			for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+			{
+				if (It->Get() && !It->Get()->IsLocalController()) { return Cast<ALabCharacter>(It->Get()->GetPawn()); }
+			}
+			return nullptr;
+		};
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabDownClient="), DownAt))
+		{
+			FTimerHandle T1;
+			GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [FindClientPawn]()
+			{
+				if (ALabCharacter* C = FindClientPawn()) { C->KnockDown(FVector(0.f, 0.f, 150.f)); }
+			}), DownAt, false);
+		}
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabTeleportToClient="), ToAt))
+		{
+			FTimerHandle T2;
+			GetWorldTimerManager().SetTimer(T2, FTimerDelegate::CreateWeakLambda(this, [this, FindClientPawn]()
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				ALabCharacter* C = FindClientPawn();
+				if (!PC || !PC->GetPawn() || !C) { return; }
+				const FVector Body = C->GetActorLocation();
+				const FVector Pos = Body + FVector(-140.f, 0.f, 0.f);
+				PC->GetPawn()->SetActorLocation(FVector(Pos.X, Pos.Y, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+				PC->SetControlRotation(FRotator(-30.f, 0.f, 0.f)); // mirando el cuerpo (+X)
+			}), ToAt, false);
+		}
+	}
+
 	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
 	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
 	static bool bAutoStaminaDone = false;

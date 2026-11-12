@@ -75,6 +75,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ayuda")
 	float PullRelicMultiplier = 1.6f;
 
+	// --- Cargar a un caído ---
+	/** Segundos que hay que mantener E sobre un caído para cargarlo (tocar E = levantarlo). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cargar", meta = (ClampMin = 0.2))
+	float CarryHoldSeconds = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cargar", meta = (ClampMin = 0.1, ClampMax = 1))
+	float CarrySpeedMultiplier = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cargar")
+	float CarryStaminaPerSecond = 6.f;
+
 	/** Bordes altos (pie de banco / dar la mano) en el camino entrada → centro → salida. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Obstáculos", meta = (ClampMin = 0, ClampMax = 10))
 	int32 LedgesOnMainPath = 2;

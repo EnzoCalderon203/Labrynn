@@ -1,4 +1,4 @@
-#include "Interact/LabLantern.h"
+﻿#include "Interact/LabLantern.h"
 
 #include "Player/LabCharacter.h"
 #include "Components/StaticMeshComponent.h"
@@ -173,7 +173,7 @@ bool ALabLantern::CanInteract(const ALabCharacter* By) const
 	{
 		return true; // pasar o soltar
 	}
-	return Holder == nullptr && !By->GetHeldLantern() && !By->IsCarryingRelic();
+	return Holder == nullptr && !By->GetHeldLantern() && !By->IsCarryingRelic() && !By->IsCarryingBody();
 }
 
 FText ALabLantern::GetInteractPrompt(const ALabCharacter* By) const

@@ -16,6 +16,7 @@ public class Labrynn : ModuleRules
 			"Slate",
 			"SlateCore",
 			"RenderCore",
+			"ApplicationCore",   // IPlatformInputDeviceMapper (inyección de teclas en pruebas)
 			"AIModule",          // UAISense_Hearing: el jadeo emite ruido para una IA futura
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils"

@@ -260,6 +260,20 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - Cliente: 40 de heridas (stamina topeada en 60 %) → corre, se agota y jadea → 70 más de heridas → `cayó`.
   - Botiquín: `curado: -50`. Reliquia: −2,5 %/s y velocidad 248. ✅
 - **No implementado (no se pidió):** agacharse. `bCanCrouch` sigue desactivado y no tiene tecla.
+**16:55 · 🐞 BUG: Shift no corría (encontrado por Enzo en PIE) → corregido ✅**
+- **Causa:** era **código de prueba de Claude**. El `PlayerTick` de `-LabAutoRun` escribía `bWantsToSprint = false` **en cada frame**,
+  aunque la prueba no estuviera activa, y pisaba el Shift del jugador. Las pruebas de Claude activaban el sprint por código y por eso
+  **nunca pasaron por el input real**. Enzo tenía razón en sospecharlo.
+- **Arreglo:** el `PlayerTick` de prueba solo toca el sprint dentro de su ventana de tiempo.
+- **Input migrado a Enhanced Input:** `IA_Sprint` (Shift), `IA_Interact` (E), `IA_Lantern` (F) e `IA_Talk` (V) en
+  `/Game/Labrynn/Core/Input` + `IMC_Labrynn` (prioridad 1), creados con `Scripts/create_input_assets.py`.
+  `ALabPlayerController` agrega el IMC en cada máquina local (host y clientes). Se eliminaron los `BindKey` sueltos.
+- **Nueva herramienta de prueba con input REAL:** `-LabKeys=t:Tecla:D|U|P` inyecta las teclas en `UGameViewportClient::InputKey`,
+  el mismo camino que el teclado (viewport → PlayerController → Enhanced Input → acciones).
+  - Shift+W: host y cliente → `sprintPedido=1` mientras se mantiene, `vel=700` y la stamina baja. ✅
+  - F: host → luz 1→0→1. El cliente no tiene linterna y no cambia, como corresponde. ✅
+  - E: host → toma la reliquia. **Cliente → E viaja por RPC** y el servidor registra `Reliquia: None -> C_1`. ✅
+- **Regla nueva (en CLAUDE.md):** toda mecánica se prueba también por el camino del input real.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

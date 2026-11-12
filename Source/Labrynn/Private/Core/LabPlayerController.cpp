@@ -4,6 +4,10 @@
 #include "Online/LabSessionSubsystem.h"
 #include "Player/LabCharacter.h"
 #include "Player/LabCharacterMovement.h"
+#include "Engine/GameViewportClient.h"
+#include "GameFramework/InputDeviceSubsystem.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "Labrynn.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
@@ -22,6 +26,8 @@ ALabPlayerController::ALabPlayerController()
 	static ConstructorHelpers::FObjectFinder<UInputMappingContext> IMCMouse(TEXT("/Game/Input/IMC_MouseLook.IMC_MouseLook"));
 	if (IMCDefault.Succeeded()) { DefaultMappingContexts.Add(IMCDefault.Object); }
 	if (IMCMouse.Succeeded()) { MobileExcludedMappingContexts.Add(IMCMouse.Object); }
+	static ConstructorHelpers::FObjectFinder<UInputMappingContext> IMCLab(TEXT("/Game/Labrynn/Core/Input/IMC_Labrynn.IMC_Labrynn"));
+	LabMappingContext = IMCLab.Object;
 }
 
 void ALabPlayerController::BeginPlay()
@@ -46,9 +52,75 @@ void ALabPlayerController::ReturnToMenu()
 }
 
 #if !UE_BUILD_SHIPPING
+void ALabPlayerController::InjectKey(const FKey& Key, EInputEvent Event)
+{
+	UGameViewportClient* VC = GetWorld()->GetGameViewport();
+	if (!VC)
+	{
+		return;
+	}
+	const FInputDeviceId Device = IPlatformInputDeviceMapper::Get().GetDefaultInputDevice();
+	FInputKeyEventArgs Args(VC->Viewport, Device, Key, Event, FPlatformTime::Cycles64());
+	const bool bHandled = VC->InputKey(Args);
+	UE_LOG(LogLabrynn, Log, TEXT("[Keys] %s %s (manejada=%d)"), *Key.ToString(),
+		Event == IE_Pressed ? TEXT("DOWN") : TEXT("UP"), bHandled ? 1 : 0);
+}
+
+void ALabPlayerController::TickKeyScript()
+{
+	if (!bKeyScriptParsed)
+	{
+		bKeyScriptParsed = true;
+		KeyScriptStart = GetWorld()->GetTimeSeconds();
+		FString Script;
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabKeys="), Script))
+		{
+			TArray<FString> Parts;
+			Script.ParseIntoArray(Parts, TEXT("|"));
+			for (const FString& P : Parts)
+			{
+				TArray<FString> F;
+				P.ParseIntoArray(F, TEXT(":"));
+				if (F.Num() == 3)
+				{
+					KeyScript.Add({ FCString::Atof(*F[0]), FKey(*F[1]), F[2][0] });
+				}
+			}
+			UE_LOG(LogLabrynn, Log, TEXT("[Keys] guion con %d eventos"), KeyScript.Num());
+		}
+	}
+	if (KeyScript.Num() == 0 || !IsLocalController())
+	{
+		return;
+	}
+	const float T = GetWorld()->GetTimeSeconds() - KeyScriptStart;
+	for (FLabKeyEvent& E : KeyScript)
+	{
+		if (!E.bDone && T >= E.Time)
+		{
+			E.bDone = true;
+			if (E.Kind == 'D' || E.Kind == 'P') { InjectKey(E.Key, IE_Pressed); }
+			if (E.Kind == 'U' || E.Kind == 'P') { InjectKey(E.Key, IE_Released); }
+		}
+	}
+	// Estado observable del personaje (resultado del input, no flags).
+	if (T >= NextKeyLog)
+	{
+		NextKeyLog = T + 1.f;
+		if (const ALabCharacter* Ch = Cast<ALabCharacter>(GetPawn()))
+		{
+			const ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(Ch->GetCharacterMovement());
+			UE_LOG(LogLabrynn, Log, TEXT("[Keys] t=%.0f vel=%.0f max=%.0f sprintPedido=%d stamina=%.0f%% luz=%d reliquia=%d"),
+				T, Ch->GetVelocity().Size2D(), CMC ? CMC->GetMaxSpeed() : 0.f, CMC && CMC->bWantsToSprint ? 1 : 0,
+				Ch->GetStamina01() * 100.f, Ch->IsFlashlightOn() ? 1 : 0, Ch->IsCarryingRelic() ? 1 : 0);
+		}
+	}
+}
+
 void ALabPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	TickKeyScript();
 	if (AutoRunFrom < 0.f)
 	{
 		// Dos parámetros separados: FParse::Value corta los valores en las comas.
@@ -64,9 +136,15 @@ void ALabPlayerController::PlayerTick(float DeltaTime)
 	{
 		return;
 	}
+	// BUG REAL (encontrado por Enzo en PIE): antes esto escribía bWantsToSprint EN CADA FRAME, aunque no hubiera
+	// -LabAutoRun, y pisaba el Shift del jugador. Ahora solo toca el sprint dentro de la ventana de prueba.
+	if (AutoRunFrom > 1e8f)
+	{
+		return;
+	}
 	ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(Ch->GetCharacterMovement());
 	const bool bRun = T >= AutoRunFrom && T <= AutoRunTo;
-	if (CMC)
+	if (CMC && (bRun || T <= AutoRunTo + 0.1f))
 	{
 		CMC->bWantsToSprint = bRun;
 	}
@@ -162,6 +240,14 @@ void ALabPlayerController::SetupInputComponent()
 		for (UInputMappingContext* Ctx : MobileExcludedMappingContexts)
 		{
 			if (Ctx) { Subsystem->AddMappingContext(Ctx, 0); }
+		}
+		if (LabMappingContext)
+		{
+			Subsystem->AddMappingContext(LabMappingContext, 1);
+		}
+		else
+		{
+			UE_LOG(LogLabrynn, Error, TEXT("Falta IMC_Labrynn (correr Scripts/create_input_assets.py)"));
 		}
 	}
 }

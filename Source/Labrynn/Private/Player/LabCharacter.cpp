@@ -23,12 +23,22 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "InputAction.h"
 #include "Labrynn.h"
 
 ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<ULabCharacterMovement>(ACharacter::CharacterMovementComponentName))
 {
 	bReplicates = true;
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> IASprint(TEXT("/Game/Labrynn/Core/Input/IA_Sprint.IA_Sprint"));
+	static ConstructorHelpers::FObjectFinder<UInputAction> IAInteract(TEXT("/Game/Labrynn/Core/Input/IA_Interact.IA_Interact"));
+	static ConstructorHelpers::FObjectFinder<UInputAction> IALantern(TEXT("/Game/Labrynn/Core/Input/IA_Lantern.IA_Lantern"));
+	static ConstructorHelpers::FObjectFinder<UInputAction> IATalk(TEXT("/Game/Labrynn/Core/Input/IA_Talk.IA_Talk"));
+	SprintAction = IASprint.Object;
+	InteractAction = IAInteract.Object;
+	LanternAction = IALantern.Object;
+	TalkAction = IATalk.Object;
 
 	static ConstructorHelpers::FObjectFinder<ULabStaminaSettings> StaminaDA(TEXT("/Game/Labrynn/Core/DA_Stamina.DA_Stamina"));
 	if (StaminaDA.Succeeded())
@@ -660,17 +670,25 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EIC->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALabCharacter::MoveInput);
 		EIC->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALabCharacter::LookInput);
 		EIC->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ALabCharacter::LookInput);
+
+		// Acciones propias (IMC_Labrynn). Started = al apretar; Completed = al soltar.
+		if (SprintAction)
+		{
+			EIC->BindAction(SprintAction, ETriggerEvent::Started, this, &ALabCharacter::SprintPressed);
+			EIC->BindAction(SprintAction, ETriggerEvent::Completed, this, &ALabCharacter::SprintReleased);
+		}
+		if (InteractAction) { EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &ALabCharacter::InteractInput); }
+		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::ToggleFlashlightInput); }
+		if (!SprintAction || !InteractAction || !LanternAction)
+		{
+			UE_LOG(LogLabrynn, Error, TEXT("Faltan Input Actions de /Game/Labrynn/Core/Input (correr Scripts/create_input_assets.py)"));
+		}
 	}
 	else
 	{
 		UE_LOG(LogLabrynn, Error, TEXT("'%s' no tiene EnhancedInputComponent."), *GetNameSafe(this));
 	}
 
-	// Teclas sin asset de input (temporal hasta tener IA_ propios).
-	PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ALabCharacter::ToggleFlashlightInput);
-	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ALabCharacter::InteractInput);
-	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ALabCharacter::SprintPressed);
-	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ALabCharacter::SprintReleased);
 }
 
 // ---------------------------------------------------------------- Interacción

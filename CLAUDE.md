@@ -63,7 +63,7 @@ música adaptativa y arte custom elaborado.
   Cada máquina construye el mismo laberinto en local con `FRandomStream`. Las paredes no se replican.
 - **Conexión online:** Online Subsystem Steam con AppID 480 (ver DEVLOG). Fallback: IP directa.
 
-## Controles (provisorios, BindKey en C++; faltan Input Actions propias)
+## Controles (Enhanced Input: IMC_Default de la plantilla + IMC_Labrynn propio)
 WASD moverse · mouse mirar · Espacio saltar (gasta stamina) · **Shift correr** · F linterna · E interactuar · Esc menú.
 Agacharse: no existe.
 
@@ -72,6 +72,12 @@ Una sola barra; las heridas bloquean la parte de arriba; si la llenan → caído
 El sprint va en los saved moves (`ULabCharacterMovement`), nunca por RPC.
 **El piso del laberinto tiene que ser Static**: si es Movable, el cliente no puede resolver la base de movimiento (ALabMaze no se replica)
 e ignora las correcciones del servidor.
+
+## Pruebas (regla obligatoria)
+- Toda mecánica nueva se prueba **también por el camino del input real**: `Scripts/nettest.ps1 -Extra "-LabKeys=t:Tecla:D|U|P ..."`
+  (inyecta en `UGameViewportClient::InputKey`). Los flags que activan cosas por código (`-LabAuto*`) sirven para preparar escenarios,
+  **nunca** para dar por probado un control. El código de prueba no puede tocar estado de juego fuera de su ventana activa.
+- Se prueba siempre en LAN con host + cliente; el cliente es el caso importante (RPC + predicción).
 
 ## Convenciones de código
 

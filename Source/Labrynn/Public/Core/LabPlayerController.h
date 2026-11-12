@@ -34,6 +34,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
 	TArray<TObjectPtr<UInputMappingContext>> MobileExcludedMappingContexts;
 
+	/** Teclas propias de Labrynn (Shift, E, F, V). Prioridad 1: le gana a IMC_Default si hay conflicto. */
+	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
+	TObjectPtr<UInputMappingContext> LabMappingContext;
+
 	/** Se mantiene por compatibilidad con el Blueprint de la plantilla (no se usa en PC). */
 	UPROPERTY(EditAnywhere, Category = "Input|Touch Controls")
 	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
@@ -44,6 +48,19 @@ public:
 	virtual void PlayerTick(float DeltaTime) override;
 private:
 	float AutoRunFrom = -1.f, AutoRunTo = -1.f;
+
+	/**
+	 * Input REAL simulado: -LabKeys=1:W:D|1:LeftShift:D|6:LeftShift:U|6:W:U|8:F:P
+	 * (segundos desde BeginPlay : FKey : D=down U=up P=press+release). Se inyecta en
+	 * UGameViewportClient::InputKey, o sea por el mismo camino que el teclado (Enhanced Input incluido).
+	 */
+	struct FLabKeyEvent { float Time; FKey Key; TCHAR Kind; bool bDone = false; };
+	TArray<FLabKeyEvent> KeyScript;
+	bool bKeyScriptParsed = false;
+	float KeyScriptStart = 0.f;
+	float NextKeyLog = 0.f;
+	void TickKeyScript();
+	void InjectKey(const FKey& Key, EInputEvent Event);
 	/** Depuración: -LabAutoShot=N saca captura a los N s (mirando al compañero más cercano); -LabAutoQuit cierra después. */
 	void SetupAutoShot();
 	void DoAutoShot();

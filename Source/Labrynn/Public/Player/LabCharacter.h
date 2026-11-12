@@ -72,6 +72,19 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> MouseLookAction;
 
+	// Acciones propias (IMC_Labrynn, lo agrega ALabPlayerController). Assets en /Game/Labrynn/Core/Input.
+	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
+	TObjectPtr<UInputAction> SprintAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
+	TObjectPtr<UInputAction> InteractAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
+	TObjectPtr<UInputAction> LanternAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input|Labrynn")
+	TObjectPtr<UInputAction> TalkAction;
+
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	void MoveInput(const FInputActionValue& Value);

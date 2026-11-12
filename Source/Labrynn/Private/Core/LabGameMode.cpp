@@ -163,6 +163,33 @@ void ALabGameMode::StartPlay()
 		}), 30.f, false);
 	}
 
+	// Preparación de pruebas de input real: solo ACOMODA al host frente a la reliquia (la E la aprieta -LabKeys).
+	// -LabTeleportToRelic=N acomoda al host; -LabTeleportClientToRelic=N acomoda al primer cliente.
+	for (const bool bClient : { false, true })
+	{
+		float TeleportAt = 0.f;
+		if (!FParse::Value(FCommandLine::Get(), bClient ? TEXT("LabTeleportClientToRelic=") : TEXT("LabTeleportToRelic="), TeleportAt))
+		{
+			continue;
+		}
+		FTimerHandle TT;
+		GetWorldTimerManager().SetTimer(TT, FTimerDelegate::CreateWeakLambda(this, [this, bClient]()
+		{
+			for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+			{
+				APlayerController* PC = It->Get();
+				if (!PC || !PC->GetPawn() || !Relic || PC->IsLocalController() == bClient)
+				{
+					continue;
+				}
+				const FVector Pos = Relic->GetActorLocation() + FVector(-130.f, 0.f, 60.f);
+				PC->GetPawn()->SetActorLocation(Pos, false, nullptr, ETeleportType::TeleportPhysics);
+				PC->ClientSetRotation(FRotator(-20.f, 0.f, 0.f)); // mirando a la reliquia (+X); llega también al cliente
+				break;
+			}
+		}), TeleportAt, false);
+	}
+
 	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
 	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
 	static bool bAutoStaminaDone = false;

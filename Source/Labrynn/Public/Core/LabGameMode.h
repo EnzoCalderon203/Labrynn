@@ -20,6 +20,15 @@ public:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void InitGameState() override;
 	virtual void RestartPlayer(AController* NewPlayer) override;
+	virtual void StartPlay() override;
+
+	/** Reliquia a spawnear en la sala central (puede ser un Blueprint hijo con otro mesh). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Relic")
+	TSubclassOf<class ALabRelic> RelicClass;
+
+	/** Segundos entre la victoria/derrota y el reinicio con un laberinto nuevo. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Game")
+	float RestartDelay = 10.f;
 
 	/** Si es distinto de 0, se usa siempre esta seed (útil para depurar). */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze")
@@ -36,6 +45,15 @@ public:
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
 private:
+	void CheckWinLose();
+	void SpawnRelic();
+
+	UPROPERTY(Transient)
+	TObjectPtr<class ALabRelic> Relic;
+
+	FTimerHandle CheckTimer;
+	FTimerHandle RestartTimer;
+
 	int32 SeedFromOptions = 0;
 	int32 NextSpawnIndex = 0;
 };

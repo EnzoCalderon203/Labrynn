@@ -43,6 +43,9 @@ public:
 	/** Abre o cierra la pared exterior de la salida (fase de escape). Llamar en todas las máquinas. */
 	void SetExitOpen(bool bOpen);
 
+	/** ¿Este punto está dentro de la sala de salida (más allá de la pared norte)? */
+	bool IsInExitHall(const FVector& World) const;
+
 	/** Centro de la sala central (para reliquia y ayuda). */
 	UFUNCTION(BlueprintPure, Category = "Lab|Maze")
 	FVector GetCenterRoomLocation() const;
@@ -93,6 +96,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze|Art")
 	float CenterLightIntensity = 3000.f;
 
+	/** Luz roja que marca la salida cuando se abre. */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze|Art")
+	float ExitBeaconIntensity = 4000.f;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -120,6 +127,10 @@ private:
 	void AddWallH(int32 X, int32 Y);
 	void AddWallV(int32 X, int32 Y);
 	void BuildEntranceHall();
+	void BuildHall(int32 CellX, bool bNorth);
+
+	UPROPERTY(Transient)
+	TObjectPtr<class UPointLightComponent> ExitBeacon;
 	void AddGuideLight(const FVector& LocalPos, const FLinearColor& Color, float Intensity);
 
 	FLabMazeLayout Layout;

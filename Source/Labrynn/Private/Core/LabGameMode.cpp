@@ -4,6 +4,8 @@
 #include "Core/LabPlayerController.h"
 #include "Player/LabCharacter.h"
 #include "UI/LabHUD.h"
+#include "Interact/LabRelic.h"
+#include "TimerManager.h"
 #include "Maze/LabMaze.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -16,6 +18,7 @@ ALabGameMode::ALabGameMode()
 	PlayerControllerClass = ALabPlayerController::StaticClass();
 	DefaultPawnClass = ALabCharacter::StaticClass();
 	HUDClass = ALabHUD::StaticClass();
+	RelicClass = ALabRelic::StaticClass();
 	bUseSeamlessTravel = false;
 
 	// Blueprints hijos con meshes/animaciones/input asignados (contenido de la plantilla First Person).
@@ -52,6 +55,79 @@ void ALabGameMode::InitGameState()
 	{
 		GS->SetMazeSeed(Seed);
 		UE_LOG(LogLabrynn, Log, TEXT("Servidor: seed del laberinto = %d"), GS->GetMazeSeed());
+	}
+}
+
+void ALabGameMode::StartPlay()
+{
+	Super::StartPlay();
+	SpawnRelic();
+	GetWorldTimerManager().SetTimer(CheckTimer, this, &ALabGameMode::CheckWinLose, 0.25f, true);
+
+#if !UE_BUILD_SHIPPING
+	// Prueba automática del core loop: el host "teletransporta" a la reliquia, la toma y la lleva a la salida.
+	static bool bAutoRelicDone = false; // solo en la primera ronda del proceso
+	if (!bAutoRelicDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoRelic")))
+	{
+		bAutoRelicDone = true;
+		FTimerHandle T1, T2;
+		GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			ALabCharacter* Ch = PC ? Cast<ALabCharacter>(PC->GetPawn()) : nullptr;
+			if (Ch && Relic)
+			{
+				Ch->SetActorLocation(Relic->GetActorLocation() - FVector(100.f, 0.f, -60.f));
+				Relic->Interact(Ch);
+			}
+		}), 20.f, false);
+		GetWorldTimerManager().SetTimer(T2, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			const ALabGameState* GS = GetGameState<ALabGameState>();
+			ALabCharacter* Ch = Relic ? Relic->GetCarrier() : nullptr;
+			if (Ch && GS && GS->GetMaze())
+			{
+				const FLabMazeLayout& L = GS->GetMaze()->GetLayout();
+				Ch->SetActorLocation(GS->GetMaze()->CellToWorld(FIntPoint(L.Exit.X, L.Height)) + FVector(0.f, 0.f, 100.f));
+			}
+		}), 26.f, false);
+	}
+#endif
+}
+
+void ALabGameMode::SpawnRelic()
+{
+	const ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	const FVector Loc = Maze->GetCenterRoomLocation() + FVector(0.f, 0.f, 40.f);
+	Relic = GetWorld()->SpawnActor<ALabRelic>(RelicClass ? *RelicClass : ALabRelic::StaticClass(), FTransform(Loc), P);
+	UE_LOG(LogLabrynn, Log, TEXT("Reliquia spawneada en %s"), *Loc.ToCompactString());
+}
+
+void ALabGameMode::CheckWinLose()
+{
+	ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!GS || !Maze || !Relic || GS->GetPhase() != ELabPhase::Escape)
+	{
+		return;
+	}
+
+	// Victoria: la reliquia (en manos de alguien o tirada) llegó a la sala de salida.
+	if (Maze->IsInExitHall(Relic->GetActorLocation()))
+	{
+		GS->SetPhase(ELabPhase::Won);
+		GetWorldTimerManager().SetTimer(RestartTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			// Recarga el mapa (seed nueva); los clientes viajan con el host.
+			GetWorld()->ServerTravel(TEXT("?Restart"), /*bAbsolute*/ false);
+		}), RestartDelay, false);
 	}
 }
 

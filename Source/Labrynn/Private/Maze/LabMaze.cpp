@@ -188,12 +188,33 @@ void ALabMaze::AddWallV(int32 X, int32 Y)
 
 void ALabMaze::BuildEntranceHall()
 {
-	// Hall rectangular al sur de la entrada (Y negativo), abierto hacia la celda de entrada.
+	BuildHall(Layout.Entrance.X, /*bNorth*/ false);
+	BuildHall(Layout.Exit.X, /*bNorth*/ true);
+
+	// Baliza de la salida: se prende cuando se abre (fase de escape).
+	const FVector BeaconPos((Layout.Exit.X + 0.5f) * CellSize, (Layout.Height + EntranceHallDepth * 0.5f) * CellSize, WallHeight - 60.f);
+	ExitBeacon = NewObject<UPointLightComponent>(this);
+	ExitBeacon->SetupAttachment(Root);
+	ExitBeacon->SetMobility(EComponentMobility::Movable);
+	ExitBeacon->SetRelativeLocation(BeaconPos);
+	ExitBeacon->SetLightColor(FLinearColor(1.f, 0.15f, 0.08f));
+	ExitBeacon->SetIntensity(ExitBeaconIntensity);
+	ExitBeacon->SetAttenuationRadius(CellSize * 3.5f);
+	ExitBeacon->SetCastShadows(false);
+	ExitBeacon->SetVisibility(false);
+	ExitBeacon->RegisterComponent();
+	AddInstanceComponent(ExitBeacon);
+}
+
+void ALabMaze::BuildHall(int32 CellX, bool bNorth)
+{
+	// Hall rectangular fuera de la grilla (sur: Y<0; norte: Y>Height), abierto hacia la celda CellX.
 	const int32 HalfW = EntranceHallWidth / 2;
-	const float XMin = (Layout.Entrance.X - HalfW) * CellSize;
-	const float XMax = (Layout.Entrance.X + HalfW + 1) * CellSize;
-	const float YMin = -EntranceHallDepth * CellSize;
-	const float YMax = 0.f;
+	const float XMin = (CellX - HalfW) * CellSize;
+	const float XMax = (CellX + HalfW + 1) * CellSize;
+	const float YMin = bNorth ? Layout.Height * CellSize : -EntranceHallDepth * CellSize;
+	const float YMax = bNorth ? (Layout.Height + EntranceHallDepth) * CellSize : 0.f;
+	const float YFar = bNorth ? YMax : YMin;
 	const float HallW = XMax - XMin;
 	const float HallD = YMax - YMin;
 	const float FloorThickness = 20.f;
@@ -201,8 +222,8 @@ void ALabMaze::BuildEntranceHall()
 	AddBox(Floors, FVector((XMin + XMax) * 0.5f, (YMin + YMax) * 0.5f, -FloorThickness * 0.5f), FVector(HallW, HallD, FloorThickness));
 	AddBox(Ceilings, FVector((XMin + XMax) * 0.5f, (YMin + YMax) * 0.5f, WallHeight + FloorThickness * 0.5f), FVector(HallW, HallD, FloorThickness));
 
-	// Pared del fondo (sur) y laterales.
-	AddBox(Walls, FVector((XMin + XMax) * 0.5f, YMin, WallHeight * 0.5f), FVector(HallW + WallThickness, WallThickness, WallHeight));
+	// Pared del fondo y laterales.
+	AddBox(Walls, FVector((XMin + XMax) * 0.5f, YFar, WallHeight * 0.5f), FVector(HallW + WallThickness, WallThickness, WallHeight));
 	AddBox(Walls, FVector(XMin, (YMin + YMax) * 0.5f, WallHeight * 0.5f), FVector(WallThickness, HallD + WallThickness, WallHeight));
 	AddBox(Walls, FVector(XMax, (YMin + YMax) * 0.5f, WallHeight * 0.5f), FVector(WallThickness, HallD + WallThickness, WallHeight));
 
@@ -236,6 +257,16 @@ void ALabMaze::SetExitOpen(bool bOpen)
 {
 	ExitDoor->SetVisibility(!bOpen);
 	ExitDoor->SetCollisionEnabled(bOpen ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryAndPhysics);
+	if (ExitBeacon)
+	{
+		ExitBeacon->SetVisibility(bOpen);
+	}
+}
+
+bool ALabMaze::IsInExitHall(const FVector& World) const
+{
+	const FIntPoint C = WorldToCell(World);
+	return C.Y >= Layout.Height && FMath::Abs(C.X - Layout.Exit.X) <= EntranceHallWidth / 2;
 }
 
 FVector ALabMaze::GetCenterRoomLocation() const

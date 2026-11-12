@@ -9,6 +9,9 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "EngineUtils.h"
+#include "Interact/LabInteractable.h"
+#include "Interact/LabRelic.h"
 #include "Labrynn.h"
 
 ALabCharacter::ALabCharacter()
@@ -71,6 +74,7 @@ void ALabCharacter::BeginPlay()
 #endif
 	Flashlight->SetIntensity(FlashlightIntensity);
 	Flashlight->SetAttenuationRadius(FlashlightRange);
+	BaseWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
 	PersonalGlow->SetIntensity(PersonalGlowIntensity);
 	PersonalGlow->SetAttenuationRadius(PersonalGlowRadius);
 	ApplyFlashlightState();
@@ -170,8 +174,101 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		UE_LOG(LogLabrynn, Error, TEXT("'%s' no tiene EnhancedInputComponent."), *GetNameSafe(this));
 	}
 
-	// Teclas de depuración sin asset de input (temporal hasta tener IA_ propios).
+	// Teclas sin asset de input (temporal hasta tener IA_ propios).
 	PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ALabCharacter::ToggleFlashlightInput);
+	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ALabCharacter::InteractInput);
+}
+
+// ---------------------------------------------------------------- Interacción
+
+AActor* ALabCharacter::FindBestInteractable() const
+{
+	const AController* C = GetController();
+	const FVector Eye = FirstPersonCameraComponent ? FirstPersonCameraComponent->GetComponentLocation() : GetActorLocation();
+	const FVector View = (C ? C->GetControlRotation() : GetActorRotation()).Vector();
+	const FVector ViewFlat = FVector(View.X, View.Y, 0.f).GetSafeNormal();
+
+	AActor* Best = nullptr;
+	float BestScore = -1.f;
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		ILabInteractable* I = Cast<ILabInteractable>(*It);
+		if (!I || !I->CanInteract(this))
+		{
+			continue;
+		}
+		const FVector To = It->GetActorLocation() - Eye;
+		const float Dist = To.Size();
+		if (Dist > InteractRange)
+		{
+			continue;
+		}
+		// Ángulo en el plano (tolerante: los objetos en el piso quedan "abajo" de la vista).
+		const float Dot = FVector::DotProduct(ViewFlat, FVector(To.X, To.Y, 0.f).GetSafeNormal());
+		if (Dot < 0.3f && Dist > 60.f)
+		{
+			continue;
+		}
+		const float Score = Dot - Dist / InteractRange * 0.5f;
+		if (Score > BestScore)
+		{
+			BestScore = Score;
+			Best = *It;
+		}
+	}
+	return Best;
+}
+
+ALabCharacter* ALabCharacter::FindTeammateInFront() const
+{
+	const FVector Fwd = GetActorForwardVector();
+	ALabCharacter* Best = nullptr;
+	float BestDist = PassRange;
+	for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
+	{
+		if (*It == this || !It->IsAliveAndFree())
+		{
+			continue;
+		}
+		const FVector To = It->GetActorLocation() - GetActorLocation();
+		const float Dist = To.Size();
+		if (Dist < BestDist && FVector::DotProduct(Fwd, To.GetSafeNormal()) > 0.5f)
+		{
+			BestDist = Dist;
+			Best = *It;
+		}
+	}
+	return Best;
+}
+
+void ALabCharacter::InteractInput()
+{
+	ServerInteract();
+}
+
+void ALabCharacter::ServerInteract_Implementation()
+{
+	if (AActor* Target = FindBestInteractable())
+	{
+		Cast<ILabInteractable>(Target)->Interact(this);
+	}
+}
+
+void ALabCharacter::SetCarriedRelic(ALabRelic* Relic, float SpeedMultiplier)
+{
+	CarriedRelic = Relic;
+	// Se aplica en todas las máquinas (servidor y cliente dueño deben coincidir para la predicción de movimiento).
+	GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed * SpeedMultiplier;
+
+	if (Relic)
+	{
+		// Con las manos ocupadas no hay linterna.
+		if (HasAuthority())
+		{
+			bFlashlightOn = false;
+		}
+		ApplyFlashlightState();
+	}
 }
 
 void ALabCharacter::MoveInput(const FInputActionValue& Value)
@@ -216,7 +313,7 @@ void ALabCharacter::DoJumpEnd()
 
 void ALabCharacter::ToggleFlashlightInput()
 {
-	if (!bHasFlashlight || (!bFlashlightOn && GetBattery() <= 0.f))
+	if (!bHasFlashlight || IsCarryingRelic() || (!bFlashlightOn && GetBattery() <= 0.f))
 	{
 		return; // sin linterna o sin batería: no hace nada (TODO: sonido de "clic" vacío)
 	}
@@ -229,7 +326,7 @@ void ALabCharacter::ToggleFlashlightInput()
 void ALabCharacter::ServerSetFlashlight_Implementation(bool bOn)
 {
 	// El servidor valida: no se puede prender sin linterna o sin batería.
-	bFlashlightOn = bOn && bHasFlashlight && BatteryServer > 0.f;
+	bFlashlightOn = bOn && bHasFlashlight && BatteryServer > 0.f && !IsCarryingRelic();
 	ApplyFlashlightState(); // en el listen server OnRep no se dispara solo
 }
 
@@ -242,6 +339,6 @@ void ALabCharacter::ApplyFlashlightState()
 {
 	if (Flashlight)
 	{
-		Flashlight->SetVisibility(bHasFlashlight && bFlashlightOn);
+		Flashlight->SetVisibility(bHasFlashlight && bFlashlightOn && !IsCarryingRelic());
 	}
 }

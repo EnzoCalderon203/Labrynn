@@ -129,8 +129,39 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
 	float PersonalGlowRadius = 220.f;
 
+	// --- Interacción (tecla E) y reliquia ---
+
+	/** Distancia máxima para interactuar (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Interact")
+	float InteractRange = 220.f;
+
+	/** Distancia máxima para pasar la reliquia a un compañero (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Interact")
+	float PassRange = 260.f;
+
+	void InteractInput();
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteract();
+
 public:
 	virtual void Tick(float DeltaSeconds) override;
+
+	/** El interactuable más conveniente frente a la cámara (o null). Sirve en cliente (HUD) y servidor. */
+	AActor* FindBestInteractable() const;
+
+	/** Compañero vivo y libre más cercano frente a mí, dentro de PassRange (o null). */
+	ALabCharacter* FindTeammateInFront() const;
+
+	/** Lo llama la reliquia en todas las máquinas. Ajusta velocidad y bloquea la linterna. */
+	void SetCarriedRelic(class ALabRelic* Relic, float SpeedMultiplier);
+
+	UFUNCTION(BlueprintPure, Category = "Lab|Relic")
+	bool IsCarryingRelic() const { return CarriedRelic.IsValid(); }
+
+	/** Vivo y no atrapado (se completa con el sistema de rescate). */
+	UFUNCTION(BlueprintPure, Category = "Lab|State")
+	virtual bool IsAliveAndFree() const { return true; }
 
 	/** Solo servidor. */
 	void SetHasFlashlight(bool bHas);
@@ -149,6 +180,9 @@ public:
 private:
 	void ApplyFlashlightState();
 	void UpdateFlashlightIntensity(float DeltaSeconds);
+
+	TWeakObjectPtr<class ALabRelic> CarriedRelic;
+	float BaseWalkSpeed = 450.f;
 
 	/** Batería precisa (solo servidor); BatteryByte es su versión replicada. */
 	float BatteryServer = 1.f;

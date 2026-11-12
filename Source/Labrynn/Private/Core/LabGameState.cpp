@@ -13,6 +13,42 @@ void ALabGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ALabGameState, MazeSeed);
+	DOREPLIFETIME(ALabGameState, Phase);
+	DOREPLIFETIME(ALabGameState, PhaseStartTime);
+}
+
+void ALabGameState::SetPhase(ELabPhase NewPhase)
+{
+	check(HasAuthority());
+	if (Phase == NewPhase)
+	{
+		return;
+	}
+	Phase = NewPhase;
+	PhaseStartTime = GetServerWorldTimeSeconds();
+	UE_LOG(LogLabrynn, Log, TEXT("Fase -> %s"), *UEnum::GetValueAsString(Phase));
+	ApplyPhase();
+}
+
+void ALabGameState::OnRelicTaken()
+{
+	if (Phase == ELabPhase::Explore)
+	{
+		SetPhase(ELabPhase::Escape);
+	}
+}
+
+void ALabGameState::OnRep_Phase()
+{
+	ApplyPhase();
+}
+
+void ALabGameState::ApplyPhase()
+{
+	if (Maze)
+	{
+		Maze->SetExitOpen(Phase != ELabPhase::Explore);
+	}
 }
 
 void ALabGameState::SetMazeSeed(int32 NewSeed)
@@ -52,6 +88,7 @@ void ALabGameState::BuildLocalMaze()
 	if (Maze)
 	{
 		Maze->Build(MazeSeed);
+		ApplyPhase(); // la fase pudo haber llegado antes que el laberinto (ej. alguien entra en pleno escape)
 	}
 	else
 	{

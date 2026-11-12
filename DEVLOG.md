@@ -157,6 +157,21 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Aprendizaje: con Steam activo, el host escucha por **SteamSockets** y no por IP. Para "Unirse por IP", el host tiene que abrir
   el juego con `-nosteam`. Las pruebas locales de `nettest.ps1` ahora usan siempre `-nosteam`.
 
+**15:50 · Reliquia, fase de escape y victoria ✅ (el core loop se puede jugar de principio a fin)**
+- `ILabInteractable` (tecla **E**): el personaje elige el interactuable más cercano frente a la cámara. El cliente lo usa para el
+  texto del HUD; el servidor lo vuelve a calcular y valida en `ServerInteract` (el cliente no elige el objetivo).
+- `ALabRelic`: cono que brilla en celeste y **sirve de fuente de luz** para el grupo. Quien la carga camina al **55 %** de velocidad y
+  **no puede usar la linterna**. Con E se la **pasa al compañero de enfrente** (≤ 2,6 m) o la **suelta** en el piso.
+  `bAlwaysRelevant`. El portador se replica con RepNotify y la velocidad se aplica en servidor y cliente para que la
+  predicción de movimiento no "rebote".
+- `ALabGameState::Phase` (Explore → Escape → Won/Lost, replicada): al tomar la reliquia por primera vez se **abre la salida
+  norte** (sala nueva con **baliza roja**). Si la reliquia llega a la sala de salida, hay **victoria**, y a los 10 s
+  se hace `ServerTravel ?Restart` con un laberinto nuevo.
+- HUD: `[E] Tomar/Pasar/Soltar la reliquia`, "¡LA SALIDA SE ABRIÓ!", "¡ESCAPARON CON LA RELIQUIA!".
+- Prueba automática `-LabAutoRelic` (solo en desarrollo): en el log aparecen `Reliquia: None -> C_0` → `Fase -> Escape` →
+  `Fase -> Won` → `ProcessServerTravel: ?Restart`, y el cliente **viaja con el host** y reconstruye el laberinto. ✅
+- Con esto, el Hito 2 ("jugable de principio a fin") queda cumplido en su forma mínima. Faltan el rescate y las trampas.
+
 ---
 
 ## 📋 RESUMEN PARA ENZO (14:45)

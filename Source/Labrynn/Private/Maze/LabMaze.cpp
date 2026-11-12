@@ -248,6 +248,10 @@ void ALabMaze::BuildEntranceHall()
 	BuildHall(Layout.Entrance.X, /*bNorth*/ false);
 	BuildHall(Layout.Exit.X, /*bNorth*/ true);
 
+	// Mesa de faroles contra la pared del fondo del hall de entrada.
+	const FVector TableCenter = TableLocalCenter();
+	AddBox(Walls, TableCenter - FVector(0.f, 0.f, TableHeight * 0.5f), FVector(TableWidth, 70.f, TableHeight));
+
 	// Baliza de la salida: se prende cuando se abre (fase de escape).
 	const FVector BeaconPos((Layout.Exit.X + 0.5f) * CellSize, (Layout.Height + EntranceHallDepth * 0.5f) * CellSize, WallHeight - 60.f);
 	ExitBeacon = NewObject<UPointLightComponent>(this);
@@ -318,6 +322,21 @@ void ALabMaze::SetExitOpen(bool bOpen)
 	{
 		ExitBeacon->SetVisibility(bOpen);
 	}
+}
+
+FVector ALabMaze::TableLocalCenter() const
+{
+	// Centro de la tapa de la mesa (local): al fondo del hall de entrada.
+	return FVector((Layout.Entrance.X + 0.5f) * CellSize, -EntranceHallDepth * CellSize + 70.f, TableHeight);
+}
+
+FTransform ALabMaze::GetLanternTableSlot(int32 Index) const
+{
+	// Hasta 4 faroles en fila sobre la mesa; si hay más, segunda fila.
+	const int32 Col = Index % 4;
+	const int32 Row = Index / 4;
+	const FVector Local = TableLocalCenter() + FVector(-TableWidth * 0.375f + Col * TableWidth * 0.25f, Row * 25.f, 1.f);
+	return FTransform(GetActorTransform().TransformPosition(Local));
 }
 
 bool ALabMaze::IsInExitHall(const FVector& World) const

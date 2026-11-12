@@ -43,6 +43,15 @@ public:
 	/** Abre o cierra la pared exterior de la salida (fase de escape). Llamar en todas las máquinas. */
 	void SetExitOpen(bool bOpen);
 
+	/** Lugar del farol número Index sobre la mesa del hall de entrada (mundo). */
+	FTransform GetLanternTableSlot(int32 Index) const;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze")
+	float TableWidth = 220.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Maze")
+	float TableHeight = 85.f;
+
 	/** ¿Este punto está dentro de la sala de salida (más allá de la pared norte)? */
 	bool IsInExitHall(const FVector& World) const;
 
@@ -139,6 +148,7 @@ private:
 	void AddWallV(int32 X, int32 Y);
 	void BuildEntranceHall();
 	void BuildHall(int32 CellX, bool bNorth);
+	FVector TableLocalCenter() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<class UPointLightComponent> ExitBeacon;

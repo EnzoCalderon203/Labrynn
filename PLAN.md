@@ -58,3 +58,14 @@ Orden de recorte: dardos → tiza → amuleto/Corazón → gas → botiquín.
   y premia llegar juntos. Plan B: un *amuleto de cuerda* que deja tirar de un compañero caído desde lejos.
 - **La salida no es la entrada**: queda en el borde norte, cerrada hasta que se toma la reliquia.
   Obliga a explorar de nuevo en la fase de escape, con la tiza como ayuda.
+
+## Alcance ampliado (aprobado por Enzo, jueves 12/11 a la noche)
+Orden de trabajo, con commit y prueba en LAN (con input real) después de cada punto:
+| # | Qué | Estado |
+|---|---|---|
+| 0 | Bug: Shift no corría en PIE + migración a Enhanced Input | ✅ |
+| 1 | Farol medieval, mesa con jugadores-1, aceite, corriente de aire, reencendido de 3 s | ✅ |
+| 2 | Chat de voz por proximidad (V, atenuación 3D, oclusión; la voz hace ruido) | ⏳ |
+| 3 | Minotauro (fase de escape, BFS por la grilla hacia el ruido, golpe = heridas grandes + ragdoll) | ⏳ |
+| 4 | Si sobra tiempo: premios graciosos al final + ping con la rueda del mouse | ⏳ |
+Regla de recorte si se atrasa: 4 → antorchas → oclusión de voz → resoplidos 3D del Minotauro.

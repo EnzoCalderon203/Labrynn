@@ -274,6 +274,25 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   - F: host → luz 1→0→1. El cliente no tiene linterna y no cambia, como corresponde. ✅
   - E: host → toma la reliquia. **Cliente → E viaja por RPC** y el servidor registra `Reliquia: None -> C_1`. ✅
 - **Regla nueva (en CLAUDE.md):** toda mecánica se prueba también por el camino del input real.
+**18:09 · Punto 1: Farol medieval ✅ (cambio de diseño aprobado por Enzo)**
+- La **linterna se eliminó**. Ahora la luz es **`ALabLantern`**: llama cálida omnidireccional con parpadeo (ruido Perlin; más inestable con
+  poco aceite), radio de 6,5 m a propósito para que el grupo vaya junto, y sombras.
+  - Aceite: 300 s encendido. Los **frascos de aceite** (`ALabOilFlask`, ×6) reemplazan a las baterías y suman +50 %.
+- **Mesa en el hall** con `max(1, jugadores - 1)` faroles. `EnsureLanterns()` agrega los que falten cuando entra alguien.
+- **E**: tomar, pasar al compañero de enfrente o dejar en el piso; en el piso **sigue iluminando**. No se puede llevar junto con la reliquia:
+  al tomarla, el farol cae. Al caer en ragdoll también se suelta.
+- **F**: apaga al instante. Reencender **tarda 3 s** (barra en el HUD).
+- La trampa de gas pasó a ser una **corriente de aire**: apaga el farol que lleva quien está adentro y los apoyados en el piso de esa
+  zona, y no deja reencender mientras dure. Velo frío en el HUD.
+- **Corazón**: además, recarga y enciende todos los faroles.
+- Calibración con captura: intensidad 2600 → **900**. A 2600 la imagen quedaba lavada (brillo medio 165/255); ahora es cálida, con la sombra
+  de la mesa marcada. El farol se sostiene más abajo y a la derecha.
+- **Prueba con input real (`-LabKeys`)**:
+  - Host: E toma → F apaga → F reencendiendo 3 s → encendido → E lo deja en el piso.
+  - **Cliente: E levanta el farol del piso por RPC** (`None -> C_1`).
+  - Corriente de aire: `la corriente de aire apagó la llama`; F adentro no hace nada; F después reenciende en 3 s. ✅
+  - 0 crashes de GPU.
+- Pendiente opcional: antorchas tenues en las paredes.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

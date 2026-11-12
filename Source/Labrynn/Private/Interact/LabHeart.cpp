@@ -1,6 +1,7 @@
-#include "Interact/LabHeart.h"
+﻿#include "Interact/LabHeart.h"
 
 #include "Player/LabCharacter.h"
+#include "Interact/LabLantern.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Engine/StaticMesh.h"
@@ -77,9 +78,12 @@ void ALabHeart::Interact(ALabCharacter* By)
 			++Revived;
 		}
 		It->RestoreAll();   // sin heridas, stamina llena
-		It->AddBattery(1.f);
 	}
-	UE_LOG(LogLabrynn, Log, TEXT("Corazón usado por %s: %d revivido(s), linternas recargadas"), *By->GetName(), Revived);
+	for (TActorIterator<ALabLantern> L(GetWorld()); L; ++L)
+	{
+		L->Refill(); // todos los faroles llenos y encendidos
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Corazón usado por %s: %d revivido(s), faroles recargados"), *By->GetName(), Revived);
 }
 
 void ALabHeart::OnRep_Used()

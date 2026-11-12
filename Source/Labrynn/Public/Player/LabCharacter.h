@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -42,9 +42,6 @@ class LABRYNN_API ALabCharacter : public ACharacter, public ILabInteractable
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FirstPersonCameraComponent;
 
-	/** Linterna. Visible para todos (la luz de un compañero también te ilumina). */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USpotLightComponent> Flashlight;
 
 public:
 	ALabCharacter(const FObjectInitializer& ObjectInitializer);
@@ -55,8 +52,15 @@ public:
 	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
+	/** Farol que lleva en la mano (o null). Lo fija ALabLantern en todas las máquinas. */
 	UFUNCTION(BlueprintPure, Category = "Lab|Light")
-	bool IsFlashlightOn() const { return bFlashlightOn; }
+	class ALabLantern* GetHeldLantern() const { return HeldLantern.Get(); }
+
+	void SetHeldLantern(class ALabLantern* Lantern) { HeldLantern = Lantern; }
+
+	/** ¿Tiene un farol encendido en la mano? */
+	UFUNCTION(BlueprintPure, Category = "Lab|Light")
+	bool HasLitLantern() const;
 
 protected:
 	// --- Input (mismos nombres que la plantilla: el Blueprint ya trae los assets asignados) ---
@@ -105,49 +109,15 @@ protected:
 	virtual bool CanJumpInternal_Implementation() const override;
 	virtual void OnJumped_Implementation() override;
 
-	// --- Linterna (replicada) ---
-	/** Tecla F: alterna la linterna. Se pide al servidor, que replica el estado. */
-	void ToggleFlashlightInput();
+	// --- Farol (tecla F: apagar / reencender el que llevo) ---
+	void LanternInput();
 
 	UFUNCTION(Server, Reliable)
-	void ServerSetFlashlight(bool bOn);
+	void ServerLanternToggle();
 
-	UFUNCTION()
-	void OnRep_FlashlightOn();
-
-	UPROPERTY(ReplicatedUsing = OnRep_FlashlightOn, BlueprintReadOnly, Category = "Lab|Light")
-	bool bFlashlightOn = true;
-
-	/** Intensidad de la linterna (unidades del componente). */
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
-	float FlashlightIntensity = 3000.f;
-
-	/** Alcance de la linterna en cm. */
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
-	float FlashlightRange = 1600.f;
-
-	// --- Luz compartida: pocas linternas, batería limitada ---
-
-	/** ¿Este jugador tiene linterna? Lo decide el GameMode (por defecto, la mitad del grupo). */
-	UPROPERTY(ReplicatedUsing = OnRep_FlashlightOn, BlueprintReadOnly, Category = "Lab|Light")
-	bool bHasFlashlight = false;
-
-	/** Hasta qué hora del servidor está gaseado. */
+	/** Hasta qué hora del servidor está en una corriente de aire (no se puede encender). */
 	UPROPERTY(Replicated)
 	float GasUntilServerTime = 0.f;
-
-	/** Batería 0..255 (replicada a todos para que vean la linterna del otro debilitarse). */
-	UPROPERTY(Replicated)
-	uint8 BatteryByte = 255;
-
-	/** Segundos que dura una batería llena con la linterna prendida. */
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light", meta = (ClampMin = 10))
-	float BatterySeconds = 240.f;
-
-	/** Por debajo de esta carga la linterna parpadea y pierde intensidad. */
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light", meta = (ClampMin = 0.0, ClampMax = 1.0))
-	float LowBatteryThreshold = 0.25f;
-
 	/** Brillo personal tenue (todos lo tienen): permite ver la silueta de los compañeros cercanos. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<class UPointLightComponent> PersonalGlow;
@@ -182,7 +152,7 @@ public:
 	/** Compañero vivo y libre más cercano frente a mí, dentro de PassRange (o null). */
 	ALabCharacter* FindTeammateInFront() const;
 
-	/** Lo llama la reliquia en todas las máquinas. Ajusta velocidad y bloquea la linterna. */
+	/** Lo llama la reliquia en todas las máquinas. (La velocidad sale de ULabCharacterMovement.) */
 	void SetCarriedRelic(class ALabRelic* Relic, float SpeedMultiplier);
 
 	UFUNCTION(BlueprintPure, Category = "Lab|Relic")
@@ -322,34 +292,13 @@ private:
 	float NextBreathNoise = 0.f;
 
 public:
-	/** Solo servidor. */
-	void SetHasFlashlight(bool bHas);
-
-	/** Solo servidor. Suma batería (Amount en 0..1). Para pickups de baterías. */
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Lab|Light")
-	void AddBattery(float Amount);
-
-	UFUNCTION(BlueprintPure, Category = "Lab|Light")
-	bool HasFlashlight() const { return bHasFlashlight; }
-
-	/** Solo servidor. Gas: apaga la linterna y no deja prenderla durante Seconds (se renueva mientras siga en la nube). */
+	/** Solo servidor. Corriente de aire: apaga el farol que lleva y no deja reencenderlo durante Seconds. */
 	void ApplyGas(float Seconds);
 
 	UFUNCTION(BlueprintPure, Category = "Lab|Light")
 	bool IsInGas() const;
 
-	/** 0..1 */
-	UFUNCTION(BlueprintPure, Category = "Lab|Light")
-	float GetBattery() const { return BatteryByte / 255.f; }
-
 private:
-	void ApplyFlashlightState();
-	void UpdateFlashlightIntensity(float DeltaSeconds);
-
 	TWeakObjectPtr<class ALabRelic> CarriedRelic;
-
-	/** Batería precisa (solo servidor); BatteryByte es su versión replicada. */
-	float BatteryServer = 1.f;
-	float FlickerTimer = 0.f;
-	float FlickerFactor = 1.f;
+	TWeakObjectPtr<class ALabLantern> HeldLantern;
 };

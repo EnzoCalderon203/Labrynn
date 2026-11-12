@@ -1,9 +1,10 @@
-#include "Core/LabPlayerController.h"
+﻿#include "Core/LabPlayerController.h"
 
 #include "Core/LabCameraManager.h"
 #include "Online/LabSessionSubsystem.h"
 #include "Player/LabCharacter.h"
 #include "Player/LabCharacterMovement.h"
+#include "Interact/LabLantern.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/InputDeviceSubsystem.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
@@ -110,9 +111,9 @@ void ALabPlayerController::TickKeyScript()
 		if (const ALabCharacter* Ch = Cast<ALabCharacter>(GetPawn()))
 		{
 			const ULabCharacterMovement* CMC = Cast<ULabCharacterMovement>(Ch->GetCharacterMovement());
-			UE_LOG(LogLabrynn, Log, TEXT("[Keys] t=%.0f vel=%.0f max=%.0f sprintPedido=%d stamina=%.0f%% luz=%d reliquia=%d"),
+			UE_LOG(LogLabrynn, Log, TEXT("[Keys] t=%.0f vel=%.0f max=%.0f sprintPedido=%d stamina=%.0f%% farolEncendido=%d reliquia=%d farol=%d reencendiendo=%d"),
 				T, Ch->GetVelocity().Size2D(), CMC ? CMC->GetMaxSpeed() : 0.f, CMC && CMC->bWantsToSprint ? 1 : 0,
-				Ch->GetStamina01() * 100.f, Ch->IsFlashlightOn() ? 1 : 0, Ch->IsCarryingRelic() ? 1 : 0);
+				Ch->GetStamina01() * 100.f, Ch->HasLitLantern() ? 1 : 0, Ch->IsCarryingRelic() ? 1 : 0, Ch->GetHeldLantern() ? 1 : 0, Ch->GetHeldLantern() && Ch->GetHeldLantern()->IsRelighting() ? 1 : 0);
 		}
 	}
 }
@@ -204,9 +205,9 @@ void ALabPlayerController::DoAutoShot()
 		}
 		for (TActorIterator<ALabCharacter> It(GetWorld()); It; ++It)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[AutoShot]   %s local=%d linterna=%d prendida=%d bateria=%.0f%%"),
-				*It->GetName(), It->IsLocallyControlled() ? 1 : 0, It->HasFlashlight() ? 1 : 0,
-				It->IsFlashlightOn() ? 1 : 0, It->GetBattery() * 100.f);
+			UE_LOG(LogTemp, Log, TEXT("[AutoShot]   %s local=%d farol=%d encendido=%d aceite=%.0f%%"),
+				*It->GetName(), It->IsLocallyControlled() ? 1 : 0, It->GetHeldLantern() ? 1 : 0,
+				It->HasLitLantern() ? 1 : 0, It->GetHeldLantern() ? It->GetHeldLantern()->GetOil() * 100.f : 0.f);
 		}
 	}
 	// Esperar un par de frames a que la cámara rote.

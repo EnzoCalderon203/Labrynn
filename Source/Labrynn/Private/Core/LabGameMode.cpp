@@ -1,4 +1,4 @@
-#include "Core/LabGameMode.h"
+﻿#include "Core/LabGameMode.h"
 
 #include "Core/LabGameState.h"
 #include "Core/LabPlayerController.h"
@@ -6,7 +6,8 @@
 #include "UI/LabHUD.h"
 #include "Interact/LabRelic.h"
 #include "Interact/LabHeart.h"
-#include "Interact/LabBatteryPickup.h"
+#include "Interact/LabOilFlask.h"
+#include "Interact/LabLantern.h"
 #include "Interact/LabMedkitPickup.h"
 #include "Player/LabCharacterMovement.h"
 #include "Traps/LabSpikeTrap.h"
@@ -190,6 +191,33 @@ void ALabGameMode::StartPlay()
 		}), TeleportAt, false);
 	}
 
+	// -LabTeleportToTable=N / -LabTeleportClientToTable=N: acomoda al host / cliente frente a la mesa de faroles.
+	for (const bool bClient : { false, true })
+	{
+		float At = 0.f;
+		if (!FParse::Value(FCommandLine::Get(), bClient ? TEXT("LabTeleportClientToTable=") : TEXT("LabTeleportToTable="), At))
+		{
+			continue;
+		}
+		FTimerHandle TT;
+		GetWorldTimerManager().SetTimer(TT, FTimerDelegate::CreateWeakLambda(this, [this, bClient]()
+		{
+			const ALabMaze* Maze = GetGameState<ALabGameState>()->GetMaze();
+			for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+			{
+				APlayerController* PC = It->Get();
+				if (!PC || !PC->GetPawn() || !Maze || PC->IsLocalController() == bClient)
+				{
+					continue;
+				}
+				const FVector Slot = Maze->GetLanternTableSlot(0).GetLocation();
+				PC->GetPawn()->SetActorLocation(Slot + FVector(0.f, 130.f, 15.f), false, nullptr, ETeleportType::TeleportPhysics);
+				PC->ClientSetRotation(FRotator(-35.f, -90.f, 0.f)); // mirando la mesa (-Y)
+				break;
+			}
+		}), At, false);
+	}
+
 	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
 	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
 	static bool bAutoStaminaDone = false;
@@ -344,7 +372,7 @@ void ALabGameMode::SpawnPickups()
 	{
 		return;
 	}
-	// Baterías en callejones sin salida sin foso (vale la pena explorarlos... con cuidado).
+	// Frascos de aceite en callejones sin salida sin foso (vale la pena explorarlos... con cuidado).
 	FRandomStream Rng(GS->GetMazeSeed() * 131 + 3);
 	TArray<FIntPoint> Cells = Maze->GetLayout().FindDeadEnds();
 	Cells.RemoveAll([Maze](const FIntPoint& C) { return Maze->GetPitCells().Contains(C); });
@@ -354,20 +382,20 @@ void ALabGameMode::SpawnPickups()
 	}
 	FActorSpawnParameters P;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	const int32 N = FMath::Min(BatteryCount, Cells.Num());
+	const int32 N = FMath::Min(OilFlaskCount, Cells.Num());
 	for (int32 i = 0; i < N; ++i)
 	{
-		GetWorld()->SpawnActor<ALabBatteryPickup>(BatteryClass ? *BatteryClass : ALabBatteryPickup::StaticClass(),
+		GetWorld()->SpawnActor<ALabOilFlask>(OilFlaskClass ? *OilFlaskClass : ALabOilFlask::StaticClass(),
 			FTransform(Maze->CellToWorld(Cells[i]) + FVector(0.f, 0.f, 15.f)), P);
 	}
-	// Botiquines: en los siguientes callejones de la lista (sin repetir celda con una batería).
+	// Botiquines: en los siguientes callejones de la lista (sin repetir celda con un frasco).
 	const int32 MEnd = FMath::Min(N + MedkitCount, Cells.Num());
 	for (int32 i = N; i < MEnd; ++i)
 	{
 		GetWorld()->SpawnActor<ALabMedkitPickup>(MedkitClass ? *MedkitClass : ALabMedkitPickup::StaticClass(),
 			FTransform(Maze->CellToWorld(Cells[i]) + FVector(0.f, 0.f, 10.f)), P);
 	}
-	UE_LOG(LogLabrynn, Log, TEXT("Baterías: %d, botiquines: %d"), N, MEnd - N);
+	UE_LOG(LogLabrynn, Log, TEXT("Frascos de aceite: %d, botiquines: %d"), N, MEnd - N);
 }
 
 void ALabGameMode::SpawnTraps()
@@ -490,6 +518,31 @@ void ALabGameMode::PreLogin(const FString& Options, const FString& Address, cons
 	}
 }
 
+void ALabGameMode::EnsureLanterns()
+{
+	const ALabGameState* GS = GetGameState<ALabGameState>();
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	Lanterns.RemoveAll([](const TObjectPtr<ALabLantern>& L) { return !IsValid(L); });
+	const int32 Desired = FMath::Max(1, GetNumPlayers() - 1);
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	while (Lanterns.Num() < Desired)
+	{
+		ALabLantern* L = GetWorld()->SpawnActor<ALabLantern>(LanternClass ? *LanternClass : ALabLantern::StaticClass(),
+			Maze->GetLanternTableSlot(Lanterns.Num()), P);
+		if (!L)
+		{
+			break;
+		}
+		Lanterns.Add(L);
+		UE_LOG(LogLabrynn, Log, TEXT("Farol %d en la mesa (jugadores=%d)"), Lanterns.Num(), GetNumPlayers());
+	}
+}
+
 void ALabGameMode::RestartPlayer(AController* NewPlayer)
 {
 	const ALabGameState* GS = GetGameState<ALabGameState>();
@@ -504,14 +557,6 @@ void ALabGameMode::RestartPlayer(AController* NewPlayer)
 		Super::RestartPlayer(NewPlayer);
 	}
 
-	// Luz compartida: solo 1 de cada FlashlightEveryN jugadores arranca con linterna (el 1º, el 3º...).
-	if (ALabCharacter* Ch = NewPlayer ? Cast<ALabCharacter>(NewPlayer->GetPawn()) : nullptr)
-	{
-		bool bGive = (Index % FMath::Max(1, FlashlightEveryN)) == 0;
-#if !UE_BUILD_SHIPPING
-		bGive |= FParse::Param(FCommandLine::Get(), TEXT("LabAllFlashlights"));
-#endif
-		Ch->SetHasFlashlight(bGive);
-		UE_LOG(LogLabrynn, Log, TEXT("Jugador %d (%s): linterna=%d"), Index, *GetNameSafe(Ch), bGive ? 1 : 0);
-	}
+	// Luz compartida: tiene que haber max(1, jugadores - 1) faroles en la mesa del hall.
+	EnsureLanterns();
 }

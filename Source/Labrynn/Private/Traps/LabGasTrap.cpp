@@ -1,6 +1,8 @@
-#include "Traps/LabGasTrap.h"
+﻿#include "Traps/LabGasTrap.h"
 
 #include "Player/LabCharacter.h"
+#include "Interact/LabLantern.h"
+#include "EngineUtils.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/BoxComponent.h"
@@ -23,7 +25,7 @@ ALabGasTrap::ALabGasTrap()
 	GasLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("GasLight"));
 	GasLight->SetupAttachment(Root);
 	GasLight->SetRelativeLocation(FVector(0.f, 0.f, 80.f));
-	GasLight->SetLightColor(FLinearColor(0.35f, 1.f, 0.2f));
+	GasLight->SetLightColor(FLinearColor(0.55f, 0.75f, 1.f)); // corriente de aire: brillo frío y tenue
 	GasLight->SetIntensity(0.f);
 	GasLight->SetAttenuationRadius(450.f);
 	GasLight->SetCastShadows(false);
@@ -76,6 +78,14 @@ void ALabGasTrap::ServerGasPulse()
 	}
 	for (ALabCharacter* Ch : GetCharactersInside())
 	{
-		Ch->ApplyGas(0.6f); // se renueva mientras siga adentro
+		Ch->ApplyGas(0.6f); // se renueva mientras siga adentro (apaga el farol que lleva y no deja reencender)
+	}
+	// También los faroles apoyados en el piso dentro de la corriente.
+	for (TActorIterator<ALabLantern> It(GetWorld()); It; ++It)
+	{
+		if (!It->GetHolder() && Trigger->Bounds.GetBox().IsInside(It->GetActorLocation()))
+		{
+			It->Extinguish();
+		}
 	}
 }

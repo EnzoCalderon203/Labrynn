@@ -1,6 +1,7 @@
 ﻿#include "UI/LabHUD.h"
 
 #include "Player/LabCharacter.h"
+#include "Interact/LabLantern.h"
 #include "Core/LabGameState.h"
 #include "Interact/LabInteractable.h"
 #include "Engine/Canvas.h"
@@ -21,14 +22,14 @@ void ALabHUD::DrawHUD()
 
 	UFont* Font = GEngine->GetMediumFont();
 
-	// Gas: pantalla verde y aviso.
+	// Corriente de aire: velo frío y aviso.
 	if (Ch->IsInGas())
 	{
-		DrawRect(FLinearColor(0.15f, 0.5f, 0.05f, 0.35f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
-		const FString G = TEXT("¡GAS! La linterna no prende - salí de la nube");
+		DrawRect(FLinearColor(0.35f, 0.45f, 0.6f, 0.18f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
+		const FString G = TEXT("¡Una corriente de aire! La llama no prende acá");
 		float GW, GH;
 		GetTextSize(G, GW, GH, Font, 1.5f);
-		DrawText(G, FLinearColor(0.7f, 1.f, 0.4f), (Canvas->ClipX - GW) * 0.5f, Canvas->ClipY * 0.3f, Font, 1.5f);
+		DrawText(G, FLinearColor(0.75f, 0.85f, 1.f), (Canvas->ClipX - GW) * 0.5f, Canvas->ClipY * 0.3f, Font, 1.5f);
 	}
 	// ---- Esquina inferior izquierda: stamina (con heridas), linterna, reliquia ----
 	const float X = 32.f;
@@ -59,20 +60,26 @@ void ALabHUD::DrawHUD()
 		DrawText(Label, bExh ? FLinearColor(1.f, 0.6f, 0.2f) : FLinearColor(0.75f, 0.75f, 0.75f), X, Y - 22.f, Font, 1.f);
 	}
 
-	// 2) Linterna.
+	// 2) Farol.
 	{
 		const float Y = Canvas->ClipY - 58.f;
-		if (Ch->HasFlashlight())
+		if (const ALabLantern* L = Ch->GetHeldLantern())
 		{
-			const float B = Ch->GetBattery();
-			const FLinearColor Col = B > 0.25f ? FLinearColor(0.95f, 0.85f, 0.6f) : FLinearColor(1.f, 0.3f, 0.2f);
-			DrawText(FString::Printf(TEXT("LINTERNA [F]  %3d%%"), FMath::RoundToInt(B * 100.f)), Col, X, Y, Font, 1.f);
+			const float Oil = L->GetOil();
+			const FLinearColor Col = Oil > 0.2f ? FLinearColor(1.f, 0.75f, 0.4f) : FLinearColor(1.f, 0.3f, 0.2f);
+			FString State = L->IsLit() ? TEXT("encendido") : (L->IsRelighting() ? TEXT("encendiendo...") : TEXT("apagado [F] reencender"));
+			if (Oil <= 0.f) { State = TEXT("sin aceite"); }
+			DrawText(FString::Printf(TEXT("FAROL  aceite %3d%%  - %s"), FMath::RoundToInt(Oil * 100.f), *State), Col, X, Y, Font, 1.f);
 			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, Y + 22.f, 180.f, 7.f);
-			DrawRect(Col, X, Y + 22.f, 180.f * B, 7.f);
+			DrawRect(Col, X, Y + 22.f, 180.f * Oil, 7.f);
+			if (L->IsRelighting())
+			{
+				DrawRect(FLinearColor(1.f, 0.9f, 0.5f), X + 190.f, Y + 22.f, 80.f * L->GetRelightProgress(), 7.f);
+			}
 		}
 		else
 		{
-			DrawText(TEXT("SIN LINTERNA - quedate cerca del grupo"), FLinearColor(0.6f, 0.6f, 0.65f), X, Y, Font, 1.f);
+			DrawText(TEXT("SIN FAROL - quedate cerca de la luz"), FLinearColor(0.6f, 0.6f, 0.65f), X, Y, Font, 1.f);
 		}
 	}
 

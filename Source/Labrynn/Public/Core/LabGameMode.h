@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
@@ -30,10 +30,10 @@ public:
 	TSubclassOf<class ALabHeart> HeartClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups")
-	TSubclassOf<class ALabBatteryPickup> BatteryClass;
+	TSubclassOf<class ALabOilFlask> OilFlaskClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups", meta = (ClampMin = 0, ClampMax = 20))
-	int32 BatteryCount = 6;
+	int32 OilFlaskCount = 6;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickups")
 	TSubclassOf<class ALabMedkitPickup> MedkitClass;
@@ -70,9 +70,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Game", meta = (ClampMin = 1, ClampMax = 4))
 	int32 MaxPlayers = 4;
 
-	/** 1 de cada N jugadores empieza con linterna (2 = la mitad del grupo). Debug: -LabAllFlashlights. */
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light", meta = (ClampMin = 1, ClampMax = 4))
-	int32 FlashlightEveryN = 2;
+	/** Farol (Blueprint hijo posible). En la mesa del hall hay max(1, jugadores - 1). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Light")
+	TSubclassOf<class ALabLantern> LanternClass;
 
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
@@ -81,6 +81,10 @@ private:
 	void SpawnRelic();
 	void SpawnTraps();
 	void SpawnPickups();
+	void EnsureLanterns();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class ALabLantern>> Lanterns;
 
 	UPROPERTY(Transient)
 	TObjectPtr<class ALabHeart> Heart;

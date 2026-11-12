@@ -1,4 +1,4 @@
-#include "Player/LabCharacter.h"
+﻿#include "Player/LabCharacter.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Interact/LabInteractable.h"
 #include "Interact/LabRelic.h"
+#include "Interact/LabLantern.h"
 #include "Core/LabGameState.h"
 #include "Maze/LabMaze.h"
 #include "Player/LabCharacterMovement.h"
@@ -70,15 +71,6 @@ ALabCharacter::ALabCharacter(const FObjectInitializer& ObjectInitializer)
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
 	GetMesh()->bCastHiddenShadow = true;
 
-	// Linterna en la cámara.
-	Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Flashlight"));
-	Flashlight->SetupAttachment(FirstPersonCameraComponent);
-	Flashlight->SetRelativeLocation(FVector(10.f, 15.f, -10.f));
-	Flashlight->SetInnerConeAngle(14.f);
-	Flashlight->SetOuterConeAngle(30.f);
-	Flashlight->SetCastShadows(true);
-	Flashlight->bUseInverseSquaredFalloff = true;
-
 	// Brillo personal: luz mínima alrededor del cuerpo, visible para todos.
 	PersonalGlow = CreateDefaultSubobject<UPointLightComponent>(TEXT("PersonalGlow"));
 	PersonalGlow->SetupAttachment(GetCapsuleComponent());
@@ -97,11 +89,7 @@ void ALabCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 #if !UE_BUILD_SHIPPING
-	FParse::Value(FCommandLine::Get(), TEXT("LabFlashlight="), FlashlightIntensity); // calibración rápida
-	FParse::Value(FCommandLine::Get(), TEXT("LabBatterySeconds="), BatterySeconds);
 #endif
-	Flashlight->SetIntensity(FlashlightIntensity);
-	Flashlight->SetAttenuationRadius(FlashlightRange);
 	MeshRelativeTransform = GetMesh()->GetRelativeTransform();
 	CameraRelativeTransform = FirstPersonCameraComponent->GetRelativeTransform();
 	StaminaServer = GetStaminaSettings()->MaxStamina;
@@ -109,7 +97,6 @@ void ALabCharacter::BeginPlay()
 	SyncStaminaBytes();
 	PersonalGlow->SetIntensity(PersonalGlowIntensity);
 	PersonalGlow->SetAttenuationRadius(PersonalGlowRadius);
-	ApplyFlashlightState();
 
 	static const TCHAR* Roles[] = { TEXT("None"), TEXT("SimulatedProxy"), TEXT("AutonomousProxy"), TEXT("Authority") };
 	UE_LOG(LogLabrynn, Log, TEXT("[%s] Personaje %s BeginPlay: LocalRole=%s Local=%d Body=%s Loc=%s"),
@@ -121,9 +108,6 @@ void ALabCharacter::BeginPlay()
 void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ALabCharacter, bFlashlightOn);
-	DOREPLIFETIME(ALabCharacter, bHasFlashlight);
-	DOREPLIFETIME(ALabCharacter, BatteryByte);
 	DOREPLIFETIME(ALabCharacter, LifeState);
 	DOREPLIFETIME(ALabCharacter, StaminaByte);
 	DOREPLIFETIME(ALabCharacter, WoundsByte);
@@ -148,10 +132,9 @@ void ALabCharacter::ApplyGas(float Seconds)
 	}
 	const AGameStateBase* GS = GetWorld()->GetGameState();
 	GasUntilServerTime = (GS ? GS->GetServerWorldTimeSeconds() : 0.f) + Seconds;
-	if (bFlashlightOn)
+	if (ALabLantern* L = HeldLantern.Get())
 	{
-		bFlashlightOn = false; // ¡se apagó todo!
-		ApplyFlashlightState();
+		L->Extinguish(); // ¡la corriente apagó la llama!
 	}
 }
 
@@ -376,6 +359,10 @@ void ALabCharacter::KnockDown(const FVector& Impulse)
 	{
 		Relic->SetCarrier(nullptr); // se le cae la reliquia
 	}
+	if (ALabLantern* L = HeldLantern.Get())
+	{
+		L->SetHolder(nullptr); // y el farol (queda encendido en el piso, al lado del cuerpo)
+	}
 
 	const ELabLifeState Old = LifeState;
 	LifeState = ELabLifeState::Downed;
@@ -460,7 +447,6 @@ void ALabCharacter::ApplyLifeState(ELabLifeState OldState)
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
-	ApplyFlashlightState();
 }
 
 void ALabCharacter::StartRagdoll()
@@ -569,22 +555,6 @@ void ALabCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// Servidor: descarga de batería.
-	if (HasAuthority() && bHasFlashlight && bFlashlightOn && BatteryServer > 0.f)
-	{
-		BatteryServer = FMath::Max(0.f, BatteryServer - DeltaSeconds / BatterySeconds);
-		const uint8 NewByte = static_cast<uint8>(FMath::CeilToInt(BatteryServer * 255.f));
-		if (NewByte != BatteryByte)
-		{
-			BatteryByte = NewByte;
-		}
-		if (BatteryServer <= 0.f)
-		{
-			bFlashlightOn = false; // se agotó
-			ApplyFlashlightState();
-		}
-	}
-
 	TickStamina(DeltaSeconds);
 
 	// Servidor: caído → desangrarse / ser levantado. La cápsula sigue al ragdoll (para distancias de rescate).
@@ -616,49 +586,6 @@ void ALabCharacter::Tick(float DeltaSeconds)
 		FirstPersonCameraComponent->SetWorldLocationAndRotation(CamPos, (Pelvis - CamPos).Rotation());
 	}
 
-	// Todas las máquinas: intensidad según batería, con parpadeo cosmético cuando queda poca.
-	UpdateFlashlightIntensity(DeltaSeconds);
-}
-
-void ALabCharacter::UpdateFlashlightIntensity(float DeltaSeconds)
-{
-	if (!Flashlight || !Flashlight->IsVisible())
-	{
-		return;
-	}
-	const float Battery = GetBattery();
-	float Strength = 1.f;
-	if (Battery < LowBatteryThreshold)
-	{
-		// Se debilita y parpadea más seguido cuanto menos carga queda.
-		const float Low = Battery / FMath::Max(LowBatteryThreshold, KINDA_SMALL_NUMBER); // 0..1
-		FlickerTimer -= DeltaSeconds;
-		if (FlickerTimer <= 0.f)
-		{
-			const bool bDip = FMath::FRand() > 0.35f + 0.6f * Low;
-			FlickerFactor = bDip ? FMath::FRandRange(0.05f, 0.4f) : 1.f;
-			FlickerTimer = bDip ? FMath::FRandRange(0.04f, 0.12f) : FMath::FRandRange(0.1f, 0.2f + 1.5f * Low);
-		}
-		Strength = FMath::Lerp(0.35f, 1.f, Low) * FlickerFactor;
-	}
-	Flashlight->SetIntensity(FlashlightIntensity * Strength);
-}
-
-void ALabCharacter::SetHasFlashlight(bool bHas)
-{
-	check(HasAuthority());
-	bHasFlashlight = bHas;
-	ApplyFlashlightState();
-}
-
-void ALabCharacter::AddBattery(float Amount)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-	BatteryServer = FMath::Clamp(BatteryServer + Amount, 0.f, 1.f);
-	BatteryByte = static_cast<uint8>(FMath::CeilToInt(BatteryServer * 255.f));
 }
 
 void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -678,7 +605,7 @@ void ALabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(SprintAction, ETriggerEvent::Completed, this, &ALabCharacter::SprintReleased);
 		}
 		if (InteractAction) { EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &ALabCharacter::InteractInput); }
-		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::ToggleFlashlightInput); }
+		if (LanternAction)  { EIC->BindAction(LanternAction, ETriggerEvent::Started, this, &ALabCharacter::LanternInput); }
 		if (!SprintAction || !InteractAction || !LanternAction)
 		{
 			UE_LOG(LogLabrynn, Error, TEXT("Faltan Input Actions de /Game/Labrynn/Core/Input (correr Scripts/create_input_assets.py)"));
@@ -781,14 +708,13 @@ void ALabCharacter::SetCarriedRelic(ALabRelic* Relic, float SpeedMultiplier)
 	// La velocidad la calcula ULabCharacterMovement::GetMaxSpeed a partir de este estado (en todas las máquinas).
 	CarriedRelic = Relic;
 
-	if (Relic)
+	// Con la reliquia en brazos no se puede llevar farol: se cae al piso (sigue encendido).
+	if (Relic && HasAuthority())
 	{
-		// Con las manos ocupadas no hay linterna.
-		if (HasAuthority())
+		if (ALabLantern* L = HeldLantern.Get())
 		{
-			bFlashlightOn = false;
+			L->SetHolder(nullptr);
 		}
-		ApplyFlashlightState();
 	}
 }
 
@@ -843,34 +769,24 @@ void ALabCharacter::DoJumpEnd()
 	StopJumping();
 }
 
-void ALabCharacter::ToggleFlashlightInput()
+void ALabCharacter::LanternInput()
 {
-	if (!bHasFlashlight || IsCarryingRelic() || (!bFlashlightOn && (GetBattery() <= 0.f || IsInGas())))
+	if (HeldLantern.IsValid() && IsAliveAndFree())
 	{
-		return; // sin linterna o sin batería: no hace nada (TODO: sonido de "clic" vacío)
+		ServerLanternToggle();
 	}
-	// Predicción local inmediata; el servidor confirma.
-	bFlashlightOn = !bFlashlightOn;
-	ApplyFlashlightState();
-	ServerSetFlashlight(bFlashlightOn);
 }
 
-void ALabCharacter::ServerSetFlashlight_Implementation(bool bOn)
+void ALabCharacter::ServerLanternToggle_Implementation()
 {
-	// El servidor valida: no se puede prender sin linterna o sin batería.
-	bFlashlightOn = bOn && bHasFlashlight && BatteryServer > 0.f && !IsCarryingRelic() && !IsInGas();
-	ApplyFlashlightState(); // en el listen server OnRep no se dispara solo
-}
-
-void ALabCharacter::OnRep_FlashlightOn()
-{
-	ApplyFlashlightState();
-}
-
-void ALabCharacter::ApplyFlashlightState()
-{
-	if (Flashlight)
+	if (ALabLantern* L = HeldLantern.Get())
 	{
-		Flashlight->SetVisibility(bHasFlashlight && bFlashlightOn && !IsCarryingRelic() && IsAliveAndFree());
+		L->ToggleByHolder(this);
 	}
+}
+
+bool ALabCharacter::HasLitLantern() const
+{
+	const ALabLantern* L = HeldLantern.Get();
+	return L && L->IsLit();
 }

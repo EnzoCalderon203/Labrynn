@@ -29,7 +29,8 @@ Contexto permanente para Claude Code. Leelo completo antes de tocar el proyecto.
   y con ragdoll al caer o morir.
 
 **Mecánicas cooperativas (prioridad máxima):**
-1. **Luz compartida:** pocas fuentes de luz, con batería limitada. El grupo tiene que moverse junto.
+1. **Luz compartida: faroles medievales** (`ALabLantern`). En la mesa del hall hay `max(1, jugadores - 1)`. Se toman, se pasan o se sueltan con E;
+   F apaga o reenciende (3 s). Tienen aceite (frascos) y las corrientes de aire los apagan.
 2. **Reliquia pesada:** quien la carga va lento y no puede usar la linterna. Se puede pasar a un compañero.
 3. **Rescate:** quien cae en una trampa queda caído o atrapado, y los demás lo levantan.
 4. **Ayuda del centro:** junto a la reliquia está el *Corazón del Laberinto*, que revive a los muertos
@@ -38,6 +39,9 @@ Contexto permanente para Claude Code. Leelo completo antes de tocar el proyecto.
 **Contenido:** laberinto con seed (backtracker, loops, dead-ends y sala central), trampas con aviso
 (pinchos, foso, gas y opcionalmente dardos), items (baterías, tiza, botiquín), fase de escape,
 audio guía, HUD mínimo y menú (host, unirse, brillo, volumen).
+
+**Alcance ampliado (Enzo, 12/11):** **Minotauro** (aparece en la fase de escape, se mueve por la grilla con BFS hacia el último ruido fuerte,
+más lento que el sprint, avisa con pasos y resoplidos) y **chat de voz por proximidad** (V, push-to-talk; la voz hace ruido).
 
 **Fuera de alcance:** chunks o streaming, enemigos con NavMesh, inventario complejo,
 música adaptativa y arte custom elaborado.
@@ -64,7 +68,7 @@ música adaptativa y arte custom elaborado.
 - **Conexión online:** Online Subsystem Steam con AppID 480 (ver DEVLOG). Fallback: IP directa.
 
 ## Controles (Enhanced Input: IMC_Default de la plantilla + IMC_Labrynn propio)
-WASD moverse · mouse mirar · Espacio saltar (gasta stamina) · **Shift correr** · F linterna · E interactuar · Esc menú.
+WASD moverse · mouse mirar · Espacio saltar (gasta stamina) · **Shift correr** · F apagar/reencender el farol · E interactuar (tomar/pasar/soltar) · V hablar (próximamente) · Esc menú.
 Agacharse: no existe.
 
 ## Stamina / heridas (estilo Peak)

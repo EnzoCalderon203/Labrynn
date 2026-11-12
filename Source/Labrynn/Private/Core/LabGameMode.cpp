@@ -9,6 +9,7 @@
 #include "Interact/LabBatteryPickup.h"
 #include "Traps/LabSpikeTrap.h"
 #include "Traps/LabPitTrap.h"
+#include "Traps/LabGasTrap.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "Maze/LabMaze.h"
@@ -158,6 +159,26 @@ void ALabGameMode::StartPlay()
 				}
 			}
 		}), 30.f, false);
+	}
+
+	// Prueba automática del gas: el host (con linterna prendida) pisa una trampa de gas.
+	static bool bAutoGasDone = false;
+	if (!bAutoGasDone && FParse::Param(FCommandLine::Get(), TEXT("LabAutoGas")))
+	{
+		bAutoGasDone = true;
+		FTimerHandle T1;
+		GetWorldTimerManager().SetTimer(T1, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			for (ALabTrapBase* Trap : Traps)
+			{
+				if (PC && PC->GetPawn() && Trap && Trap->IsA<ALabGasTrap>())
+				{
+					PC->GetPawn()->SetActorLocation(Trap->GetActorLocation() + FVector(0.f, 0.f, 110.f), false, nullptr, ETeleportType::TeleportPhysics);
+					break;
+				}
+			}
+		}), 18.f, false);
 	}
 
 	// Prueba automática del Corazón: tira al cliente, el host va al Corazón y lo usa.
@@ -318,7 +339,21 @@ void ALabGameMode::SpawnTraps()
 			Traps.Add(Spike);
 		}
 	}
-	UE_LOG(LogLabrynn, Log, TEXT("Trampas: %d fosos, %d pinchos"), Maze->GetPitCells().Num(), FMath::Min(SpikeTrapCount, Cells.Num()));
+	// Gas: en los siguientes pasillos de la lista (nunca en la misma celda que unos pinchos).
+	const int32 GasStart = FMath::Min(SpikeTrapCount, Cells.Num());
+	const int32 GasEnd = FMath::Min(GasStart + GasTrapCount, Cells.Num());
+	for (int32 i = GasStart; i < GasEnd; ++i)
+	{
+		ALabGasTrap* Gas = GetWorld()->SpawnActorDeferred<ALabGasTrap>(GasTrapClass ? *GasTrapClass : ALabGasTrap::StaticClass(),
+			FTransform(Maze->CellToWorld(Cells[i])), this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (Gas)
+		{
+			Gas->CellSize = Maze->CellSize;
+			Gas->FinishSpawning(FTransform(Maze->CellToWorld(Cells[i])));
+			Traps.Add(Gas);
+		}
+	}
+	UE_LOG(LogLabrynn, Log, TEXT("Trampas: %d fosos, %d pinchos, %d gas"), Maze->GetPitCells().Num(), GasStart, GasEnd - GasStart);
 }
 
 void ALabGameMode::CheckWinLose()

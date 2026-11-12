@@ -105,6 +105,28 @@ void ALabCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ALabCharacter, ReviveByte);
 	DOREPLIFETIME(ALabCharacter, DownedAtServerTime);
 	DOREPLIFETIME(ALabCharacter, DownImpulse);
+	DOREPLIFETIME(ALabCharacter, GasUntilServerTime);
+}
+
+bool ALabCharacter::IsInGas() const
+{
+	const AGameStateBase* GS = GetWorld() ? GetWorld()->GetGameState() : nullptr;
+	return GS && GS->GetServerWorldTimeSeconds() < GasUntilServerTime;
+}
+
+void ALabCharacter::ApplyGas(float Seconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	const AGameStateBase* GS = GetWorld()->GetGameState();
+	GasUntilServerTime = (GS ? GS->GetServerWorldTimeSeconds() : 0.f) + Seconds;
+	if (bFlashlightOn)
+	{
+		bFlashlightOn = false; // ¡se apagó todo!
+		ApplyFlashlightState();
+	}
 }
 
 // ---------------------------------------------------------------- Vida, caída y rescate
@@ -584,7 +606,7 @@ void ALabCharacter::DoJumpEnd()
 
 void ALabCharacter::ToggleFlashlightInput()
 {
-	if (!bHasFlashlight || IsCarryingRelic() || (!bFlashlightOn && GetBattery() <= 0.f))
+	if (!bHasFlashlight || IsCarryingRelic() || (!bFlashlightOn && (GetBattery() <= 0.f || IsInGas())))
 	{
 		return; // sin linterna o sin batería: no hace nada (TODO: sonido de "clic" vacío)
 	}
@@ -597,7 +619,7 @@ void ALabCharacter::ToggleFlashlightInput()
 void ALabCharacter::ServerSetFlashlight_Implementation(bool bOn)
 {
 	// El servidor valida: no se puede prender sin linterna o sin batería.
-	bFlashlightOn = bOn && bHasFlashlight && BatteryServer > 0.f && !IsCarryingRelic();
+	bFlashlightOn = bOn && bHasFlashlight && BatteryServer > 0.f && !IsCarryingRelic() && !IsInGas();
 	ApplyFlashlightState(); // en el listen server OnRep no se dispara solo
 }
 

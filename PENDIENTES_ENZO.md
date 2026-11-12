@@ -44,6 +44,16 @@ Claude solo pudo probar el lado del host: con una sola cuenta, la segunda instan
 **Fallback si Steam falla:** IP directa. Los dos instalan **Tailscale** (gratis) y lo abren con `-nosteam`. Enzo crea la partida;
 Luis escribe la IP 100.x.x.x de Enzo y toca **Unirse por IP**.
 
+## 2c. 🟡 Aviso del Firewall de Windows sobre "UnrealPak"
+Al empaquetar apareció un aviso: *"¿Quieres permitir que las redes públicas y privadas accedan a esta aplicación? UnrealPak"*.
+Claude no lo tocó. UnrealPak es la herramienta de empaquetado y no necesita red, así que podés poner **Cancelar**.
+**Ojo:** cuando abras el **juego** o el **editor** en modo standalone y el firewall pregunte por `Labrynn-Win64-Shipping`
+o por `UnrealEditor`, ahí sí hay que poner **Permitir**. Si no, nadie se va a poder conectar a tu partida.
+
+## 2d. 🟢 Probar el zip en la PC de Luis
+`Packaged\LabrynnTeam_Labrynn.zip` (291 MB) se genera con `powershell -File Scripts\package.ps1`.
+Antes del domingo conviene descomprimirlo en otra PC (la de Luis) para confirmar que arranca sin tener Unreal instalado.
+
 ## 3. 🟡 Joystick con drift
 Hay un **"Wireless Controller" Bluetooth** (joystick de PlayStation) conectado. En una prueba, el personaje del host
 caminó solo por el laberinto, y lo más probable es que haya sido drift del stick (el juego lee el joystick aunque la ventana

@@ -41,6 +41,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps")
 	TSubclassOf<class ALabPitTrap> PitTrapClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps")
+	TSubclassOf<class ALabGasTrap> GasTrapClass;
+
+	/** Cantidad de trampas de gas (en pasillos rectos sin pinchos). */
+	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps", meta = (ClampMin = 0, ClampMax = 20))
+	int32 GasTrapCount = 3;
+
 	/** Cantidad de trampas de pinchos (en pasillos rectos). La de fosos está en ALabMaze::PitCount. */
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Traps", meta = (ClampMin = 0, ClampMax = 20))
 	int32 SpikeTrapCount = 6;

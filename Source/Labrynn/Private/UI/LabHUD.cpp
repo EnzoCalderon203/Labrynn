@@ -18,6 +18,16 @@ void ALabHUD::DrawHUD()
 	}
 
 	UFont* Font = GEngine->GetMediumFont();
+
+	// Gas: pantalla verde y aviso.
+	if (Ch->IsInGas())
+	{
+		DrawRect(FLinearColor(0.15f, 0.5f, 0.05f, 0.35f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
+		const FString G = TEXT("¡GAS! La linterna no prende - salí de la nube");
+		float GW, GH;
+		GetTextSize(G, GW, GH, Font, 1.5f);
+		DrawText(G, FLinearColor(0.7f, 1.f, 0.4f), (Canvas->ClipX - GW) * 0.5f, Canvas->ClipY * 0.3f, Font, 1.5f);
+	}
 	const float X = 32.f;
 	const float Y = Canvas->ClipY - 70.f;
 

@@ -215,29 +215,49 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Prueba `-LabAutoHeart`: `C_1 cayó` → `Corazón usado por C_0: 1 revivido(s), linternas recargadas` → `C_1 se levantó (salud 100)`.
   En la captura se ve el Corazón latiendo en la sala central. ✅
 
+**15:41 · Ensayo de empaquetado ✅ y trampa de gas ✅**
+- **Empaquetado Shipping adelantado al jueves** para no descubrir problemas el domingo: `BUILD SUCCESSFUL` en ~2 min
+  (los shaders ya estaban cacheados por las pruebas). 646 MB en total, de los cuales 214 MB son el `.pdb`.
+  - El `.exe` abre el menú y muestra `servicio: STEAM` con el nombre de Steam del jugador.
+  - **Aprendizaje:** la build Shipping necesita `steam_appid.txt` (con 480) al lado del exe.
+- `Scripts/package.ps1`: empaqueta, agrega `steam_appid.txt`, quita los `.pdb` y arma `LabrynnTeam_Labrynn.zip`
+  → **291 MB** (límite de la jam: 1 GB). ✅
+- **Trampa de gas** (3 por laberinto, en pasillos sin pinchos): aviso de 1 s (siseo + luz verde que pulsa), después 6 s de nube.
+  A quien está adentro se le **apaga la linterna y no puede prenderla**, y ve la pantalla verde.
+  No hace daño: es una trampa "social" que deja al grupo a oscuras de golpe. La luz del gas es tenue a propósito.
+  Prueba `-LabAutoGas`: `LabGasTrap_0 activada por C_0`, y en la captura la pantalla está verde y la linterna apagada. ✅
+
 ---
 
-## 📋 RESUMEN PARA ENZO (14:45)
+## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
-**Funciona y está verificado:**
-- Toolchain: VS 2026, MSVC 14.50, SDK 26100 y UE 5.8.4. Un proyecto vacío compiló y se borró.
-- Proyecto `C:\Dev\Labrynn` en C++. Compila. Subido a GitHub (`main`, 3 commits, contenido en LFS).
-- **Hito 1 en red**: dos jugadores (listen server + cliente) en un laberinto procedural con seed replicada.
-  Mismo layout verificado por checksum, y cada uno ve al otro con el cuerpo completo.
-- `CLAUDE.md`, `PLAN.md` (aprobado por Claude según tu indicación), `PROMPT_LUIS.md`, `PENDIENTES_ENZO.md`.
+> Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.
+> Pro: gratis, sin configurar ningún portal, con NAT traversal, relay e invitaciones de amigos.
+> Contra: Steam tiene que estar abierto, el AppID es compartido (filtramos con una clave propia) y no sirve para un producto final.
+> EOS se descartó porque requiere un producto en el Developer Portal y un flujo de login. Fallback: IP directa con `-nosteam`.
 
-**Falta:**
-- Ver el Hito 1 en PIE y calibrar oscuridad y linterna. **Bloqueado por Smart App Control.**
-- Online por internet (OSS Steam AppID 480). Está planeado para hoy de 17:00 a 20:00.
-  - **Decisión:** Steam con AppID 480.
-    - **Pro:** es gratis, no hay que configurar nada en un portal, y tiene NAT traversal, relay y amigos/invitaciones.
-    - **Contra:** Steam tiene que estar abierto en las dos PCs, 480 es un AppID compartido (hay que filtrar sesiones por una clave propia)
-      y no sirve para un producto final.
-    - EOS se descartó porque requiere configurar un producto en el Developer Portal y un flujo de login: demasiado para una jam.
-    - Fallback: IP directa (o una VPN tipo Tailscale) con `open <ip>`.
+**Funciona y está verificado (pruebas automáticas con 2 instancias y capturas):**
+- **Hitos 1 y 2 completos.** El jueves a las 15:41 ya se juega de principio a fin. El Hito 2 estaba planeado para el viernes a las 22:00.
+- Menú (Slate) → Crear / Buscar / Unirse / IP. Steam real en el host (lobby + relays) y LAN entre 2 instancias.
+- Laberinto con seed replicada, oscuridad calibrada, 1 linterna cada 2 jugadores con batería, brillo personal.
+- Reliquia (lenta, sin linterna, se pasa o se suelta) → se abre la salida → victoria → nueva ronda.
+- Caída con ragdoll (el caído ve su cuerpo desparramado), rescate con E, desangrado, muerte, derrota.
+- Trampas: **pinchos** (lanzan por el aire), **fosos** (rescate desde el borde) y **gas** (apaga linternas).
+- **Corazón del Laberinto** (revive a todos y recarga las luces, 1 uso) y **baterías**.
+- **Build Shipping empaquetada**: zip de 291 MB con `Scripts/package.ps1`. Arranca con Steam.
+
+**Falta (según el plan):**
+- 🔴 **Prueba online real Enzo ↔ Luis por Steam.** Es lo más importante que queda sin verificar.
+- Tiza para marcar paredes y botiquín (sábado). Opcional: dardos.
+- **Audio** (Luis): todas las trampas, el Corazón y las baterías tienen propiedades de sonido listas para asignar en un BP hijo.
+  Faltan pasos, goteo, gritos y la baliza de la salida.
+- HUD y menú definitivos (Luis); ajustes de brillo y volumen.
+- Playtest con 3–4 personas y balance: tamaño del laberinto, batería de 240 s, cantidad de trampas.
+- Video, página de itch y `CREDITS.md` (contenido de la plantilla de Epic: maniquí, LevelPrototyping, Input).
 
 **Lo que tenés que hacer al volver** (detalle en `PENDIENTES_ENZO.md`):
-1. Decidir si apagás **Smart App Control**. Sin eso no se puede abrir el proyecto.
-2. Probar en PIE con 2 jugadores como Listen Server y decirme qué te parece la oscuridad.
-3. Agregar a Luis al repo y pasarle `PROMPT_LUIS.md`.
-4. Revisar la cuota de LFS en GitHub (135 MB usados).
+1. Jugarlo vos: abrí `Labrynn.uproject`, Play con **2 jugadores** como **Listen Server**. Teclas: WASD, mouse, F linterna, E interactuar, Esc menú.
+2. Agregar a Luis al repo y hacer la **prueba por Steam** entre las dos PCs (punto 2b de pendientes).
+3. En pantalla quedó abierto un aviso del **Firewall de Windows sobre UnrealPak**. No lo toqué. Para el juego no hace falta;
+   podés cancelarlo.
+4. Revisar la cuota de LFS en GitHub.

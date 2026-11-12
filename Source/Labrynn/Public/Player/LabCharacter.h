@@ -116,6 +116,10 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_FlashlightOn, BlueprintReadOnly, Category = "Lab|Light")
 	bool bHasFlashlight = false;
 
+	/** Hasta qué hora del servidor está gaseado. */
+	UPROPERTY(Replicated)
+	float GasUntilServerTime = 0.f;
+
 	/** Batería 0..255 (replicada a todos para que vean la linterna del otro debilitarse). */
 	UPROPERTY(Replicated)
 	uint8 BatteryByte = 255;
@@ -254,6 +258,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Lab|Light")
 	bool HasFlashlight() const { return bHasFlashlight; }
+
+	/** Solo servidor. Gas: apaga la linterna y no deja prenderla durante Seconds (se renueva mientras siga en la nube). */
+	void ApplyGas(float Seconds);
+
+	UFUNCTION(BlueprintPure, Category = "Lab|Light")
+	bool IsInGas() const;
 
 	/** 0..1 */
 	UFUNCTION(BlueprintPure, Category = "Lab|Light")

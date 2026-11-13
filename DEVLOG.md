@@ -540,6 +540,14 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Errores corregidos al empaquetar:
   - PowerShell no expandía `-clientconfig=$Config` sin comillas;
   - en Shipping, `LogNetStats` quedaba fuera del `#if !UE_BUILD_SHIPPING`.
+**13/11 17:32 · Primera conexión por Steam Enzo ↔ Luis ✅ (después de diagnosticar con los logs)**
+- **Intento 1 ("0 encontradas"):** Luis tenía **dos ventanas** abiertas. La segunda no pudo iniciar Steam (`InitGameServer failed`, la primera ocupaba el puerto)
+  y cayó a `NULL`: todas sus búsquedas fueron en red local. Además, los dos crearon partida, en momentos distintos.
+- **Intento 2:** el host salía con **Esc** a los pocos segundos (partidas de 1 s, 5 s y 25 s; `Browse L_Menu` sin error). Probablemente cerraba el overlay de Steam con Esc.
+  Al salir se borra el lobby: por eso no aparecía en la búsqueda, y el overlay solo ofrecía "ver información" y no "unirse".
+- Los lobbies estaban bien publicados: públicos, BUILDID 55116800, `LABRYNN_BUILD_s=labrynn-jam26-v1`, P2P, regiones cercanas (eze / gru).
+- **Intento 3:** host sin tocar Esc → **funciona**.
+- Pendiente propuesto: Esc doble para salir y aviso en rojo en el menú si no hay Steam.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

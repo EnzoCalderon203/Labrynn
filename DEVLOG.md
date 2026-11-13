@@ -548,6 +548,29 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - Los lobbies estaban bien publicados: públicos, BUILDID 55116800, `LABRYNN_BUILD_s=labrynn-jam26-v1`, P2P, regiones cercanas (eze / gru).
 - **Intento 3:** host sin tocar Esc → **funciona**.
 - Pendiente propuesto: Esc doble para salir y aviso en rojo en el menú si no hay Steam.
+**13/11 18:00 · Diagnóstico de la prueba por Steam (logs de Enzo y Luis, 20:00–20:33 UTC) y arreglos**
+Las notas no llegaron (el mensaje traía la plantilla), así que todo sale de los logs. Problemas, de más grave a menos:
+1. **Al terminar cada ronda, todos al menú.** El reinicio (`ServerTravel ?Restart`) recreaba el net driver y SteamSockets fallaba:
+   `InitListen failed` → `NetDriverListenFailure`. Pasó en las 3 rondas (20:02:58, 20:04:02 y 20:21:23).
+   **Arreglo:** seamless travel. En el constructor del GameMode había un `bUseSeamlessTravel = false` viejo que lo pisaba.
+   - **Probado en LAN** con 2 jugadores: `SeamlessTravel finished in 0.08 s`, el cliente sigue conectado y camina en la ronda nueva.
+   - **Probado con Steam** (host solo): el laberinto nuevo sale sin el error.
+2. **Crash de GPU de Enzo a las 20:28:56** (RTX 5070, driver 621.24, VSM ya apagadas, 1,8 de 11 GB de VRAM, DRED sin breadcrumbs). Sin causa identificable.
+   Queda como decisión: actualizar el driver o bajar el render (Lumen).
+3. **Cargar al caído se cortaba solo** (cargó y soltó en 0,27 s y en 2 s). Con ~100 ms de ping, una segunda E llegaba justo después de levantarlo.
+   **Arreglo:** el servidor ignora el "soltar" durante 0,8 s. Probado: una E a 0,35 s no lo suelta y una a 2,4 s sí.
+4. **La E soltaba la reliquia** en vez de juntar una botella (20:02:25 suelta → 20:02:30 junta), porque lo que llevás está pegado adelante y ganaba la puntuación.
+   **Arreglo:** lo que uno lleva (reliquia, farol) se elige solo si no hay otra cosa. Probado: con la reliquia, E juntó la piedra y la reliquia siguió en la mano.
+   Las demás veces que se soltó coinciden con quedarse sin aire (la soltaban para recuperarse: es la mecánica).
+5. **Voz:** Luis → Enzo llega (`Trigger Remote … TALKING` en las dos direcciones de host).
+   Enzo → Luis **sin dato**: un solo intento de 2 s, sin rastro en el log de Luis. Hay que repetir.
+- **Red:** SteamSockets, ping de 40 a 100 ms, pérdida máxima del 4 %, menos de 7 KB/s. Sin desconexiones durante la partida.
+- **Pedidos:**
+  - **Esc dos veces** para salir: el primero muestra "Apretá Esc de nuevo para salir al menú (se cierra la partida)" durante 3 s. Probado.
+  - **Aviso en rojo en el menú** si no hay Steam: "Steam no disponible. Abrí Steam e iniciá sesión, o usá Unirse por IP", más la pista de otra ventana abierta.
+    Verificado con captura en el caso real: segunda ventana → `NULL`.
+  - Con `-nosteam`, el aviso es neutro ("Modo IP directa").
+- **Reempaquetado:** Shipping de **295 MB** (`Packaged\LabrynnTeam_Labrynn.zip`) y Development de prueba de **360 MB** (`Packaged\LabrynnTeam_Labrynn_PRUEBA_DEV.zip`).
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

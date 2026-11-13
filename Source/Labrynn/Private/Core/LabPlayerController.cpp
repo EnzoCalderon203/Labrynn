@@ -275,6 +275,7 @@ void ALabPlayerController::SetupInputComponent()
 	}
 }
 
+#if !UE_BUILD_SHIPPING // en Shipping no hay log
 void ALabPlayerController::LogNetStats()
 {
 	const UNetDriver* Driver = GetWorld()->GetNetDriver();
@@ -300,3 +301,4 @@ void ALabPlayerController::LogNetStats()
 		LogConn(C, TEXT("host→cliente"));
 	}
 }
+#endif

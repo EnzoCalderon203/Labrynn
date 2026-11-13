@@ -10,7 +10,7 @@ $uat = 'C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\RunUAT.bat'
 $out = if ($Config -eq 'Shipping') { Join-Path $root 'Packaged' } else { Join-Path $root 'Packaged\Dev' }
 $log = Join-Path $root "Saved\Package_$Config.log"
 
-& $uat BuildCookRun -project="$root\Labrynn.uproject" -platform=Win64 -clientconfig=$Config `
+& $uat BuildCookRun -project="$root\Labrynn.uproject" -platform=Win64 "-clientconfig=$Config" `
     -build -cook -stage -pak -archive -archivedirectory="$out" -noP4 -utf8output -unattended -nocompileeditor *> $log
 if ($LASTEXITCODE -ne 0) { Select-String $log -Pattern 'Error' | Select-Object -Last 20; throw "Empaquetado falló (ver $log)" }
 

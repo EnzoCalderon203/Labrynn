@@ -520,6 +520,26 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 
   Exposición en la captura: sin farol 6,50 EV (adaptado); con farol 6,30 EV.
   Visualmente: sin farol se ve una penumbra fría con el piso y algo de pared cerca; con farol, luz cálida fuerte que se desvanece de forma gradual por el pasillo, sin corte.
+**13/11 15:46 · Preparación de la prueba por Steam (Enzo ↔ Luis)**
+- **Zips:**
+  - **Entrega (Shipping):** `Packaged\LabrynnTeam_Labrynn.zip`, **295 MB**, con `steam_appid.txt` = 480 y los lanzadores.
+  - **Prueba (Development):** `Packaged\LabrynnTeam_Labrynn_PRUEBA_DEV.zip`, **360 MB**, además con `PRUEBA_STEAM.md`.
+- **Por qué dos builds:** Shipping no escribe log. Activar `bUseLoggingInShipping` exige un build environment único, que el motor instalado del Launcher no permite.
+  Development escribe `Labrynn\Saved\Logs\Labrynn.log`.
+- **Logs nuevos:**
+  - `Red: entró/salió` (nombre, ID de Steam o IP, cantidad de jugadores);
+  - cada 10 s, `Red[host→cliente|cliente→host]`: ping, pérdida in/out, KB/s y driver (SteamSockets o IpNetDriver);
+  - búsqueda: sesiones devueltas por Steam contra las de Labrynn, y la URL de unión;
+  - `Error de red` y `Error de viaje`, también en el menú;
+  - verbosidad de `LogOnlineSession`, `LogOnlineVoice`, Steam y sockets en `[Core.Log]`.
+
+  Probado en LAN: `ping=4 ms pérdida 0 %`.
+- **Filtro de búsqueda:** ya existía la clave propia `LABRYNN_BUILD=labrynn-jam26-v1`, en la consulta a Steam y como segundo filtro del lado del cliente.
+  Ahora se loguea cuántas sesiones de otros juegos del AppID 480 se descartan.
+- **Lanzadores:** `Labrynn (Steam).bat` y `Labrynn (IP directa).bat` (`-nosteam`, plan B con Tailscale). Son `.bat` y no `.lnk`: un acceso directo guarda la ruta absoluta y se rompe al descomprimir en otra PC.
+- Errores corregidos al empaquetar:
+  - PowerShell no expandía `-clientconfig=$Config` sin comillas;
+  - en Shipping, `LogNetStats` quedaba fuera del `#if !UE_BUILD_SHIPPING`.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

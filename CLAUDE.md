@@ -44,7 +44,7 @@ audio guía, HUD mínimo y menú (host, unirse, brillo, volumen).
 más lento que el sprint, avisa con pasos y resoplidos) y **chat de voz por proximidad** (V, push-to-talk; la voz hace ruido).
 
 **Fuera de alcance:** chunks o streaming, enemigos con NavMesh, inventario complejo,
-música adaptativa y arte custom elaborado.
+y arte custom elaborado. (La música adaptativa se hizo igual: 3 capas sintetizadas, ver `AUDIO.md`.)
 
 ## Decisiones técnicas
 
@@ -95,6 +95,15 @@ e ignora las correcciones del servidor.
 Aparece en la fase de escape. Oye por AI Perception (Hearing) todo `UAISense_Hearing::ReportNoiseEvent` (tags: Voz, Jadeo, Sprint, Trampa, Piedra, Botella).
 Evita fosos, túneles, bordes y celdas con farol encendido. No ataca a jugadores escondidos.
 Se mueve con BFS sobre `FLabMazeLayout` (sin NavMesh). Toda acción nueva que deba "hacer ruido" tiene que llamar a `ReportNoiseEvent`.
+
+## Audio (ver `AUDIO.md`)
+- Todo sonido se reproduce con `ULabAudio::Play/Play2D/PlayAttached(ELabSfx::X, ...)`. **Nunca** `UGameplayStatics::PlaySound*` directo ni `USoundBase` sueltos en actores.
+  Evento nuevo: agregarlo a `ELabSfx` (`Audio/LabAudioSettings.h`), generar el WAV en `Scripts/audio/build_audio.py` (con `event(...)` en el manifiesto)
+  y correr `Scripts/setup_audio.py` (llena `DA_Audio`).
+- Sonidos de algo que pasa solo en el servidor: `ALabCharacter::PlaySfxAll` / multicast. Lo replicado suena en su `OnRep`.
+- La atenuación de cada sonido tiene que alcanzar al menos la distancia del ruido que oye la IA (`ReportNoiseEvent`): lo que oye el Minotauro lo oye el jugador.
+- Toda fuente de terceros va en `CREDITS.md` con su licencia (solo CC0/CC-BY). `Content/Labrynn/Audio` ahora se genera por script (antes era de Luis).
+- Pruebas: `-LabAudioLog` escribe cada evento (`Sfx[servidor|cliente]: ...`), también con `-nosound`.
 
 ## Pruebas (regla obligatoria)
 - Toda mecánica nueva se prueba **también por el camino del input real**: `Scripts/nettest.ps1 -Extra "-LabKeys=t:Tecla:D|U|P ..."`

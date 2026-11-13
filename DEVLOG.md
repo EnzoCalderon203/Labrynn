@@ -460,6 +460,40 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   (provisorio hasta tener animación). Verificado con C real y captura: cámara a la altura del túnel.
 **13/11 13:43 · Repo público** (pedido de Enzo). Antes se revisó que no hubiera claves ni datos personales: solo aparece el email noreply de GitHub y el token del servidor de archivos de Android de la plantilla, que no se usa. Se agregó `README.md`.
 
+**13/11 14:37 · Audio completo (pedido de Enzo: "hoy no hay ningún sonido y el audio es criterio de los jueces", sin Luis)**
+- **Inventario:** había 15 propiedades de sonido vacías (trampas ×3, farol ×2, aceite, botiquín, Corazón, lanzables ×2, Minotauro ×4, `EffortSound`)
+  más `BreathSound` en `DA_Stamina`. Además faltaban pasos, salto, aterrizaje, caída, revivir, escondites, cargar, ping, UI, ambiente, música y stingers.
+  En total son **44 eventos** (tabla en `AUDIO.md`).
+- **Fuentes:**
+  - Packs **CC0 de Kenney** (*Impact Sounds*, *RPG Audio*), con licencia verificada en kenney.nl. kenney.nl y OpenGameArt **bloquean la descarga automática (403)**;
+    no se intentó saltear el bloqueo y se usaron copias completas publicadas en GitHub (CC0 permite redistribuir).
+  - **Síntesis propia** con numpy/scipy (`Scripts/audio/build_audio.py`, determinista): ambiente, fuego, viento, goteo, latido, Minotauro
+    (sierra con formantes, gruñido y distorsión; pasos = impactos de Kenney bajados de tono con sub-grave), stingers y UI.
+  - **Música:** no se buscó un tema CC0 suelto. Se **sintetizaron 3 capas** (calma, tensión, persecución) con el mismo largo (48 s), tempo (90 bpm) y tonalidad (Re menor),
+    porque el crossfade adaptativo necesita capas sincronizadas y los temas CC0 no vienen separados en capas.
+- **Control sin oído:** `check_audio.py` revisa formato, pico, RMS, clipping, DC y empalme de loops; además se miraron espectrogramas.
+  Así se encontraron y arreglaron clics al final de golpes (envolvente cortada al 4 %), un crepitar del farol que sonaría a estática (ruido de fondo demasiado alto),
+  un rugido con demasiado soplido, un loop de respiración corto (`wrap` sin relleno), DC en un rugido y clipping después del pasa-altos.
+- **Integración** (`Scripts/setup_audio.py`):
+  - **Sound Classes** Master > SFX > UI, Voice, Music y Ambience; **Submixes**; `MIX_Settings` con **5 sliders de volumen** en el menú (se guardan en GameUserSettings.ini).
+  - **Atenuación igual al ruido que oye la IA** (pasos = sprint 14 m, piedra 18 m, botella y trampas 32 m, Minotauro 45 m), con caída de agudos y oclusión.
+  - **Concurrency** por grupo (pasos 8, impactos 6, Minotauro 4).
+  - **Variación** al azar de variante, pitch y volumen en C++. Reemplaza al nodo Random de los Sound Cues, que no se puede construir desde Python.
+- **Música adaptativa** (`ULabAudioDirector`): calma en exploración → tensión con el Minotauro a menos de 35 m → persecución si persigue a menos de 22 m.
+  El crossfade entra rápido y sale lento. **Ducking** a ×0,35 cuando alguien habla.
+  En la prueba la música oscilaba tensión ↔ persecución en el borde de 10 m; se agregó **histéresis del 35 %**.
+- **Prueba en LAN con `-LabAudioLog`** (input real + preparadores). Los eventos sonaron **en host y cliente** en estos casos:
+  - pasos, salto y aterrizaje (también del personaje remoto);
+  - farol;
+  - piedra → aviso, pinchos, rebotes y rearme;
+  - reliquia → stinger de salida → música a tensión;
+  - **botella → el Minotauro la oye → rugido → persecución → ataque → caída**;
+  - escondite, cargar, soltar, herida, revivir, respiración, gas, foso, botiquín, Corazón, ping, ducking y stingers de victoria y derrota.
+  
+  Con audio real (sin `-nosound`) se crean las 3 capas de música en el laberinto y en el menú, sin advertencias.
+- **No verificado:** cómo suena (Claude no puede escuchar). Lista de "qué escuchar" en **PENDIENTES 2g**.
+  Tampoco el clic de los botones del menú: las pruebas no pueden hacer clic en Slate.
+- Tamaño: 88 WAV fuente (48,7 MB) más 112 assets (22 MB) en LFS.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

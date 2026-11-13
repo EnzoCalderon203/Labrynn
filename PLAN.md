@@ -83,3 +83,12 @@ Mismo procedimiento: compilar, probar en LAN con input real (host + cliente), co
 | 7 | Piedras y botellas (arco, ruido, activan trampas) | ✅ |
 | 8 | Voz procesada por estado | ✅ lógica · falta escucharlo con micrófono (Luis, PENDIENTES 2f) |
 | 9 | Premios graciosos al final + ping con la rueda del mouse | ✅ |
+
+## Audio completo (viernes 13/11, sin Luis)
+| Parte | Qué | Estado |
+|---|---|---|
+| 1 | Inventario y fuentes: Kenney CC0 (Impact Sounds, RPG Audio) + síntesis propia; `CREDITS.md` | ✅ |
+| 2 | `ULabAudio` + `DA_Audio` (44 eventos), música adaptativa en 3 capas, ducking, ambiente, stingers, volúmenes en el menú | ✅ |
+| 3 | `setup_audio.py`: sound classes, submixes, atenuación = ruido de la IA, concurrencia | ✅ |
+| 4 | Prueba en LAN por logs (host y cliente) | ✅ |
+| 5 | Escucharlo con auriculares y ajustar (PENDIENTES 2g) | ⏳ Enzo |

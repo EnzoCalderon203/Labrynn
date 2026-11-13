@@ -74,20 +74,40 @@ En LAN o Steam, Luis mantiene **V** y habla mientras:
 Si algún efecto es demasiado fuerte o flojo, ajustar la categoría **Voz** de `DA_Gameplay`
 (`VoiceDownedLowPass`, `VoiceHiddenVolume`…) o avisarle a Claude.
 
-## 2g. 🟠 Luis: sonidos a asignar (todos son `UPROPERTY` vacíos; el juego funciona sin ellos)
-| Dónde | Propiedad | Qué sonido |
-|---|---|---|
-| Trampas (BP hijos de `LabSpikeTrap` / `LabPitTrap` / `LabGasTrap`) | `WarnSound`, `FireSound`, `ResetSound` | clic de aviso, golpe/disparo, rearme |
-| `LabLantern` | `LightSound`, `ExtinguishSound` | encender y apagar fuego |
-| `LabOilFlask` / `LabMedkitPickup` | `PickupSound` | juntar |
-| `LabHeart` | `UseSound` | latido o pulso mágico |
-| `DA_Stamina` | `BreathSound` | respiración agitada (loop) |
-| `LabMinotaur` | `FootstepSound`, `SnortSound`, `RoarSound`, `FireFearSound` | pasos pesados, resoplido, rugido, quejido ante el fuego |
-| `LabCharacter` | `EffortSound` | esfuerzo al tirar o impulsar |
-| `LabThrowable` | `ImpactSound`, `ShatterSound` | golpe de piedra, botella rota |
+## 2g. 🟠 Enzo: escuchar el audio con auriculares y decirle a Claude qué cambiar
+Todo el audio ya está integrado: 44 eventos, música adaptativa, ambiente y volúmenes en el menú.
+Claude lo verificó por logs (cada evento dispara su sonido en host y cliente) y por análisis numérico, pero **no lo pudo escuchar**.
+Abrí el juego (PIE, 2 jugadores) con auriculares y anotá lo que suene mal, fuerte, flojo o raro. Las referencias son los nombres de `AUDIO.md`.
 
-Los nombres exactos se ven en el panel Details del Blueprint hijo (categoría `Lab|...|Audio`). Si alguno no aparece, avisar.
+**Menú**
+1. ¿Suena la música (capa *calma*) y el **clic** de los botones? ¿Los 5 sliders de **Volumen** cambian lo que tienen que cambiar?
 
+**Explorando**
+2. **Cama de ambiente:** ¿el drone grave de mazmorra se siente como cueva o molesta? ¿Se nota el corte del loop (cada 40 s)?
+3. **Sonidos sueltos de ambiente** (goteo, viento, crujidos, retumbes) cada 5–12 s: ¿asustan bien o son demasiado seguidos o fuertes?
+4. **Pasos:** caminar, correr (Shift) y agachado (C). ¿Suenan a piedra? ¿Se repiten de forma notoria? ¿Los pasos del compañero se ubican bien en 3D?
+5. **Salto y aterrizaje**, escombros, pie de banco (**esfuerzo**).
+6. **Farol:** encender y apagar (F), **crepitar** de la llama (¿suena a fuego o a estática?) y agarrarlo (E).
+7. **Trampas:** clic de aviso, pinchos, foso que se hunde, corriente de aire (gas) y rearme.
+8. **Lanzables:** juntar, el *whoosh* al lanzar, rebotes de la piedra, botella rota.
+9. **Escondites** (entrar y salir), **heridas**, **caída** (ragdoll), **cargar** a un caído, **revivir**, **respiración** sin aire.
+10. **Ping** (rueda): ¿se escucha bien sin molestar?
+
+**Centro y escape**
+11. **Latido del Corazón** al acercarte y el sonido al **usarlo**. **Campana de la reliquia**.
+12. **Stinger de salida abierta** (estruendo + reja). Después debería entrar la capa de **tensión**.
+13. **Minotauro:**
+    - pasos pesados y resoplidos (¿suena a bestia grande?);
+    - **rugido** cuando oye algo (¿asusta o da risa?);
+    - **ataque**;
+    - quejido ante el **fuego**.
+14. **Música adaptativa:** lejos del Minotauro debería sonar calma/tensión; cerca, *tensión*; si te persigue, *persecución* (tambores).
+    ¿Los cambios son suaves? ¿La persecución es demasiado fuerte?
+15. **Ducking:** mientras alguien mantiene **V**, ¿baja la música?
+16. **Victoria / derrota:** ¿se oyen los stingers sobre la pantalla de premios?
+
+**Cómo ajustar:** casi todo se arregla sin compilar en `DA_Audio` (volumen y pitch por evento, distancias de la música, ducking) o con los sliders.
+Si un sonido no sirve, decile a Claude cuál y cómo debería sonar ("más grave", "menos agudo", "más corto"): se regenera con `build_audio.py`.
 ## 2h. 🟡 Mirar en pantalla (la lógica está probada por logs, lo visual no)
 En PIE (2 jugadores, Listen Server):
 1. **Cargar a un caído:** ¿el cuerpo se ve cruzado sobre el hombro, o queda raro? Si queda raro, avisar (se ajusta un offset).
@@ -105,7 +125,7 @@ GitHub → `EnzoCalderon203/Labrynn` → **Settings → Collaborators → Add pe
 Después pasale `PROMPT_LUIS.md`. Pedile que **revise si tiene Smart App Control** (punto 1).
 
 ## 5. 🟢 Cuota de Git LFS en GitHub
-Ya subimos **135 MB** a LFS (el maniquí de la plantilla pesa 125 MB). Revisá cuánto te queda en
+Ya subimos **~210 MB** a LFS (el maniquí de la plantilla pesa 125 MB; el audio, ~70 MB entre WAV fuente y assets). Revisá cuánto te queda en
 **GitHub → Settings → Billing and plans → Git LFS**. Si el plan gratuito queda corto, avisame: puedo podar animaciones que no usamos.
 
 ## 6. ⚪ Opcional: símbolos de depuración del editor

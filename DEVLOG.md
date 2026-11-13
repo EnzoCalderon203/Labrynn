@@ -458,6 +458,8 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   y la cámara está pegada a la cabeza del modelo, así que la vista no bajaba.
   Ahora, con `TickCrouchVisual`, tus brazos y tu cámara bajan ~70 cm en forma suave y los demás ven tu cuerpo achicado hacia los pies
   (provisorio hasta tener animación). Verificado con C real y captura: cámara a la altura del túnel.
+**13/11 13:43 · Repo público** (pedido de Enzo). Antes se revisó que no hubiera claves ni datos personales: solo aparece el email noreply de GitHub y el token del servidor de archivos de Android de la plantilla, que no se usa. Se agregó `README.md`.
+
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

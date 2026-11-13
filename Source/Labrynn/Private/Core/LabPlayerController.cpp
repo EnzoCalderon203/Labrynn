@@ -1,4 +1,7 @@
 ﻿#include "Core/LabPlayerController.h"
+#include "Engine/NetConnection.h"
+#include "Engine/NetDriver.h"
+#include "GameFramework/PlayerState.h"
 
 #include "Core/LabCameraManager.h"
 #include "Online/LabSessionSubsystem.h"
@@ -128,6 +131,11 @@ void ALabPlayerController::TickKeyScript()
 void ALabPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	if (IsLocalController() && GetWorld()->GetTimeSeconds() >= NextNetStatsTime)
+	{
+		NextNetStatsTime = GetWorld()->GetTimeSeconds() + 10.f;
+		LogNetStats();
+	}
 	TickKeyScript();
 	if (AutoRunFrom < 0.f)
 	{
@@ -264,5 +272,31 @@ void ALabPlayerController::SetupInputComponent()
 		{
 			UE_LOG(LogLabrynn, Error, TEXT("Falta IMC_Labrynn (correr Scripts/create_input_assets.py)"));
 		}
+	}
+}
+
+void ALabPlayerController::LogNetStats()
+{
+	const UNetDriver* Driver = GetWorld()->GetNetDriver();
+	if (!Driver)
+	{
+		return;
+	}
+	auto LogConn = [Driver](const UNetConnection* C, const TCHAR* Who)
+	{
+		if (!C) { return; }
+		const APlayerState* PS = C->PlayerController ? C->PlayerController->PlayerState : nullptr;
+		UE_LOG(LogLabrynn, Log, TEXT("Red[%s]: %s ping=%.0f ms pérdida in=%.1f%% out=%.1f%% in=%.1f KB/s out=%.1f KB/s driver=%s"), Who,
+			PS ? *PS->GetPlayerName() : TEXT("?"), C->AvgLag * 1000.f,
+			C->GetInLossPercentage().GetAvgLossPercentage() * 100.f, C->GetOutLossPercentage().GetAvgLossPercentage() * 100.f,
+			C->InBytesPerSecond / 1024.f, C->OutBytesPerSecond / 1024.f, *Driver->GetClass()->GetName());
+	};
+	if (Driver->ServerConnection)
+	{
+		LogConn(Driver->ServerConnection, TEXT("cliente→host"));
+	}
+	for (const UNetConnection* C : Driver->ClientConnections)
+	{
+		LogConn(C, TEXT("host→cliente"));
 	}
 }

@@ -32,6 +32,7 @@ Enzo lo desactivó y la DLL carga (estado verificado: `VerifiedAndReputablePolic
    - **Linterna:** `FlashlightIntensity` (ahora 3000), o `-LabFlashlight=4000`.
 
 ## 2b. 🟠 Prueba online REAL por Steam (Enzo ↔ Luis). Necesita dos PCs y dos cuentas de Steam
+> **Guía actualizada (13/11): seguir `PRUEBA_STEAM.md`** con el zip `Packaged\LabrynnTeam_Labrynn_PRUEBA_DEV.zip` (Development, con log). Lo de abajo queda como referencia.
 Claude solo pudo probar el lado del host: con una sola cuenta, la segunda instancia no puede usar Steam.
 1. Los dos con **Steam abierto y con sesión iniciada**. Si son amigos en Steam, mejor.
 2. Los dos abren el juego **en modo standalone**: clic derecho en `Labrynn.uproject` → *Launch game*.

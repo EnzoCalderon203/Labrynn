@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
@@ -46,6 +46,10 @@ protected:
 public:
 	/** Depuración: -LabAutoRunFrom=N -LabAutoRunTo=M corre ida y vuelta con Shift entre esos segundos (input real del jugador). */
 	virtual void PlayerTick(float DeltaTime) override;
+
+	/** Cada 10 s: ping y pérdida de paquetes de cada conexión (diagnóstico de la prueba online). */
+	void LogNetStats();
+	float NextNetStatsTime = 10.f;
 private:
 	float AutoRunFrom = -1.f, AutoRunTo = -1.f;
 

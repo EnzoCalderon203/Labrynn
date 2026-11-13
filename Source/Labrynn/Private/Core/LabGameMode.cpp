@@ -993,3 +993,22 @@ void ALabGameMode::RestartPlayer(AController* NewPlayer)
 	// Luz compartida: tiene que haber max(1, jugadores - 1) faroles en la mesa del hall.
 	EnsureLanterns();
 }
+
+// ---------------------------------------------------------------- Diagnóstico de red (para la prueba por Steam)
+
+void ALabGameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+	const APlayerState* PS = NewPlayer ? NewPlayer->PlayerState : nullptr;
+	UNetConnection* Conn = NewPlayer ? NewPlayer->GetNetConnection() : nullptr;
+	UE_LOG(LogLabrynn, Log, TEXT("Red: entró %s (id=%s, dirección=%s, local=%d). Jugadores: %d"),
+		PS ? *PS->GetPlayerName() : TEXT("?"), PS ? *PS->GetUniqueId().ToString() : TEXT("?"),
+		Conn ? *Conn->LowLevelGetRemoteAddress(true) : TEXT("-"), NewPlayer && NewPlayer->IsLocalController() ? 1 : 0, GetNumPlayers());
+}
+
+void ALabGameMode::Logout(AController* Exiting)
+{
+	const APlayerState* PS = Exiting ? Exiting->PlayerState : nullptr;
+	UE_LOG(LogLabrynn, Log, TEXT("Red: salió %s. Quedan: %d"), PS ? *PS->GetPlayerName() : TEXT("?"), FMath::Max(0, GetNumPlayers() - 1));
+	Super::Logout(Exiting);
+}

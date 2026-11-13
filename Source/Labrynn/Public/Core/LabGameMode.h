@@ -86,6 +86,8 @@ public:
 	TSubclassOf<class ALabLantern> LanternClass;
 
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
+	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual void Logout(AController* Exiting) override;
 
 private:
 	void CheckWinLose();

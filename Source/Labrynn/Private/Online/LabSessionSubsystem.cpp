@@ -1,4 +1,4 @@
-#include "Online/LabSessionSubsystem.h"
+﻿#include "Online/LabSessionSubsystem.h"
 
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
 #include "HAL/IConsoleManager.h"
+#include "Engine/Engine.h"
 #include "Labrynn.h"
 
 const TCHAR* ULabSessionSubsystem::GameMapURL = TEXT("/Game/Labrynn/Maps/L_Labrynn");
@@ -32,7 +33,19 @@ void ULabSessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		DestroyHandle = S->AddOnDestroySessionCompleteDelegate_Handle(FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::OnDestroyComplete));
 		InviteHandle = S->AddOnSessionUserInviteAcceptedDelegate_Handle(FOnSessionUserInviteAcceptedDelegate::CreateUObject(this, &ThisClass::OnInviteAccepted));
 	}
-	UE_LOG(LogLabrynn, Log, TEXT("Online: servicio=%s, LAN=%d"), *GetOnlineServiceName(), IsLAN() ? 1 : 0);
+	UE_LOG(LogLabrynn, Log, TEXT("Online: servicio=%s, LAN=%d, clave de búsqueda %s=%s"), *GetOnlineServiceName(), IsLAN() ? 1 : 0, *KeyBuild.ToString(), *BuildValue);
+	if (GEngine)
+	{
+		// Errores de red y de viaje: al log y al menú (lo primero que hay que mirar si la prueba online falla).
+		GEngine->OnNetworkFailure().AddWeakLambda(this, [this](UWorld*, UNetDriver* Driver, ENetworkFailure::Type Type, const FString& Msg)
+		{
+			SetStatus(FString::Printf(TEXT("Error de red: %s (%s)"), ENetworkFailure::ToString(Type), *Msg));
+		});
+		GEngine->OnTravelFailure().AddWeakLambda(this, [this](UWorld*, ETravelFailure::Type Type, const FString& Msg)
+		{
+			SetStatus(FString::Printf(TEXT("Error de viaje: %s (%s)"), ETravelFailure::ToString(Type), *Msg));
+		});
+	}
 }
 
 void ULabSessionSubsystem::Deinitialize()
@@ -180,11 +193,13 @@ void ULabSessionSubsystem::OnFindSessionsComplete(bool bOk)
 	if (Search.IsValid())
 	{
 		// Filtro extra del lado del cliente (por si el servicio ignora la clave).
+		const int32 Raw = Search->SearchResults.Num();
 		Search->SearchResults.RemoveAll([](const FOnlineSessionSearchResult& R)
 		{
 			FString Value;
 			return !R.IsValid() || !R.Session.SessionSettings.Get(KeyBuild, Value) || Value != BuildValue;
 		});
+		UE_LOG(LogLabrynn, Log, TEXT("Online: el servicio devolvió %d sesión(es); %d de otros juegos descartadas"), Raw, Raw - Search->SearchResults.Num());
 
 		for (const FOnlineSessionSearchResult& R : Search->SearchResults)
 		{
@@ -197,6 +212,11 @@ void ULabSessionSubsystem::OnFindSessionsComplete(bool bOk)
 		}
 	}
 
+	UE_LOG(LogLabrynn, Log, TEXT("Online: búsqueda ok=%d, %d resultado(s) de Labrynn"), bOk ? 1 : 0, LastResults.Num());
+	for (const FLabSessionInfo& I : LastResults)
+	{
+		UE_LOG(LogLabrynn, Log, TEXT("Online:   - %s (%d/%d) %d ms"), *I.HostName, I.MaxPlayers - I.OpenSlots, I.MaxPlayers, I.PingMs);
+	}
 	SetStatus(bOk ? FString::Printf(TEXT("%d partida(s) encontrada(s)."), LastResults.Num()) : TEXT("La búsqueda falló."));
 	OnFindComplete.Broadcast(LastResults);
 }
@@ -250,6 +270,7 @@ void ULabSessionSubsystem::OnJoinComplete(FName SessionName, EOnJoinSessionCompl
 	}
 
 	SetStatus(TEXT("Conectando..."));
+	UE_LOG(LogLabrynn, Log, TEXT("Online: unido a la sesión, viajando a %s"), *Url);
 	if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
 	{
 		PC->ClientTravel(Url, TRAVEL_Absolute);

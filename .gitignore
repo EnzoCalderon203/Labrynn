@@ -38,3 +38,6 @@ Packaged/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# --- Herramientas locales (venv de audio, descargas) ---
+Tools/

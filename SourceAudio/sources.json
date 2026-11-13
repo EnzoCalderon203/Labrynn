@@ -1,0 +1,221 @@
+{
+ "Player/Footstep_01": [
+  "impact/footstep_concrete_000.ogg"
+ ],
+ "Player/Footstep_02": [
+  "impact/footstep_concrete_001.ogg"
+ ],
+ "Player/Footstep_03": [
+  "impact/footstep_concrete_002.ogg"
+ ],
+ "Player/Footstep_04": [
+  "impact/footstep_concrete_003.ogg"
+ ],
+ "Player/Footstep_05": [
+  "impact/footstep_concrete_004.ogg"
+ ],
+ "Player/Jump_01": [
+  "rpg/cloth1.ogg"
+ ],
+ "Player/Jump_02": [
+  "rpg/cloth2.ogg"
+ ],
+ "Player/Land_01": [
+  "impact/footstep_concrete_002.ogg",
+  "impact/impactSoft_heavy_000.ogg"
+ ],
+ "Player/Land_02": [
+  "impact/footstep_concrete_003.ogg",
+  "impact/impactSoft_heavy_001.ogg"
+ ],
+ "Player/Land_03": [
+  "impact/footstep_concrete_004.ogg",
+  "impact/impactSoft_heavy_002.ogg"
+ ],
+ "Player/BodyFall_01": [
+  "impact/impactPunch_heavy_000.ogg",
+  "impact/impactSoft_heavy_002.ogg",
+  "rpg/cloth2.ogg"
+ ],
+ "Player/BodyFall_02": [
+  "impact/impactPunch_heavy_001.ogg",
+  "impact/impactSoft_heavy_003.ogg",
+  "rpg/cloth3.ogg"
+ ],
+ "Player/BodyFall_03": [
+  "impact/impactPunch_heavy_002.ogg",
+  "impact/impactSoft_heavy_004.ogg",
+  "rpg/cloth4.ogg"
+ ],
+ "Player/Hurt_01": [
+  "impact/impactPunch_heavy_001.ogg"
+ ],
+ "Player/Hurt_02": [
+  "impact/impactPunch_heavy_002.ogg"
+ ],
+ "Player/Hurt_03": [
+  "impact/impactPunch_heavy_003.ogg"
+ ],
+ "Player/Revive_01": [
+  "rpg/cloth4.ogg"
+ ],
+ "Player/Effort_01": [
+  "rpg/beltHandle1.ogg"
+ ],
+ "Player/Effort_02": [
+  "rpg/cloth2.ogg"
+ ],
+ "Player/Breath_loop": [],
+ "Player/Pickup_01": [
+  "rpg/handleSmallLeather.ogg"
+ ],
+ "Player/Pickup_02": [
+  "rpg/handleSmallLeather2.ogg"
+ ],
+ "Player/Drop_01": [
+  "rpg/dropLeather.ogg"
+ ],
+ "Player/Throw_01": [],
+ "Player/Throw_02": [],
+ "Player/Throw_03": [],
+ "Player/CarryLift_01": [
+  "rpg/cloth1.ogg",
+  "rpg/cloth3.ogg"
+ ],
+ "Player/HideEnter_01": [
+  "impact/impactWood_medium_000.ogg",
+  "rpg/creak1.ogg"
+ ],
+ "Player/HideEnter_02": [
+  "impact/impactWood_medium_001.ogg",
+  "rpg/creak2.ogg"
+ ],
+ "Player/HideExit_01": [
+  "impact/impactWood_medium_002.ogg",
+  "rpg/creak3.ogg"
+ ],
+ "UI/Ping_01": [],
+ "UI/Click_01": [],
+ "Lantern/Light_01": [],
+ "Lantern/Out_01": [],
+ "Lantern/Fire_loop": [],
+ "Lantern/Take_01": [
+  "rpg/handleSmallLeather.ogg",
+  "rpg/metalLatch.ogg"
+ ],
+ "Items/OilPickup_01": [
+  "impact/impactGlass_medium_000.ogg",
+  "rpg/handleSmallLeather2.ogg"
+ ],
+ "Items/MedkitPickup_01": [
+  "rpg/beltHandle1.ogg",
+  "rpg/cloth4.ogg"
+ ],
+ "Throw/StoneImpact_01": [
+  "impact/impactMining_000.ogg"
+ ],
+ "Throw/StoneImpact_02": [
+  "impact/impactMining_001.ogg"
+ ],
+ "Throw/StoneImpact_03": [
+  "impact/impactMining_002.ogg"
+ ],
+ "Throw/StoneImpact_04": [
+  "impact/impactMining_003.ogg"
+ ],
+ "Throw/StoneImpact_05": [
+  "impact/impactMining_004.ogg"
+ ],
+ "Throw/BottleShatter_01": [
+  "impact/impactGlass_heavy_000.ogg"
+ ],
+ "Throw/BottleShatter_02": [
+  "impact/impactGlass_heavy_001.ogg"
+ ],
+ "Throw/BottleShatter_03": [
+  "impact/impactGlass_heavy_002.ogg"
+ ],
+ "Traps/Warn_01": [
+  "impact/impactMetal_light_000.ogg",
+  "rpg/metalClick.ogg"
+ ],
+ "Traps/Warn_02": [
+  "impact/impactMetal_light_001.ogg",
+  "rpg/metalClick.ogg"
+ ],
+ "Traps/SpikeFire_01": [
+  "impact/impactMetal_heavy_000.ogg",
+  "rpg/drawKnife1.ogg"
+ ],
+ "Traps/SpikeFire_02": [
+  "impact/impactMetal_heavy_001.ogg",
+  "rpg/drawKnife1.ogg"
+ ],
+ "Traps/PitFire_01": [
+  "impact/impactWood_heavy_000.ogg"
+ ],
+ "Traps/GasFire_01": [],
+ "Traps/Reset_01": [
+  "impact/impactMetal_light_002.ogg",
+  "rpg/metalLatch.ogg"
+ ],
+ "Center/HeartUse_01": [],
+ "Center/Heartbeat_loop": [],
+ "Center/RelicTake_01": [],
+ "Stingers/ExitOpen_01": [
+  "rpg/doorOpen_1.ogg"
+ ],
+ "Stingers/Victory_01": [],
+ "Stingers/Defeat_01": [],
+ "Minotaur/Step_01": [
+  "impact/impactPunch_heavy_000.ogg",
+  "impact/impactWood_heavy_000.ogg"
+ ],
+ "Minotaur/Step_02": [
+  "impact/impactPunch_heavy_001.ogg",
+  "impact/impactWood_heavy_001.ogg"
+ ],
+ "Minotaur/Step_03": [
+  "impact/impactPunch_heavy_002.ogg",
+  "impact/impactWood_heavy_002.ogg"
+ ],
+ "Minotaur/Step_04": [
+  "impact/impactPunch_heavy_003.ogg",
+  "impact/impactWood_heavy_003.ogg"
+ ],
+ "Minotaur/Snort_01": [],
+ "Minotaur/Snort_02": [],
+ "Minotaur/Snort_03": [],
+ "Minotaur/Roar_01": [],
+ "Minotaur/Roar_02": [],
+ "Minotaur/FireFear_01": [],
+ "Minotaur/Attack_01": [
+  "impact/impactPunch_heavy_004.ogg"
+ ],
+ "Minotaur/Attack_02": [
+  "impact/impactPunch_heavy_003.ogg"
+ ],
+ "Ambience/Drip_01": [],
+ "Ambience/Drip_02": [],
+ "Ambience/Drip_03": [],
+ "Ambience/Drip_04": [],
+ "Ambience/Drip_05": [],
+ "Ambience/Wind_01": [],
+ "Ambience/Wind_02": [],
+ "Ambience/Wind_03": [],
+ "Ambience/Rumble_01": [],
+ "Ambience/Rumble_02": [],
+ "Ambience/Creak_01": [
+  "rpg/creak1.ogg"
+ ],
+ "Ambience/Creak_02": [
+  "rpg/creak2.ogg"
+ ],
+ "Ambience/Creak_03": [
+  "rpg/creak3.ogg"
+ ],
+ "Ambience/Bed_loop": [],
+ "Music/Calm_loop": [],
+ "Music/Tension_loop": [],
+ "Music/Chase_loop": []
+}

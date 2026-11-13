@@ -1,0 +1,806 @@
+{
+ "Footstep": {
+  "files": [
+   "Player/Footstep_01",
+   "Player/Footstep_02",
+   "Player/Footstep_03",
+   "Player/Footstep_04",
+   "Player/Footstep_05"
+  ],
+  "category": "SFX",
+  "attenuation": "Step",
+  "concurrency": "Footsteps",
+  "volume": [
+   0.75,
+   0.95
+  ],
+  "pitch": [
+   0.9,
+   1.08
+  ],
+  "loop": false
+ },
+ "Jump": {
+  "files": [
+   "Player/Jump_01",
+   "Player/Jump_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Step",
+  "concurrency": "Footsteps",
+  "volume": [
+   0.7,
+   0.85
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "Land": {
+  "files": [
+   "Player/Land_01",
+   "Player/Land_02",
+   "Player/Land_03"
+  ],
+  "category": "SFX",
+  "attenuation": "Step",
+  "concurrency": "Footsteps",
+  "volume": [
+   0.8,
+   1.0
+  ],
+  "pitch": [
+   0.92,
+   1.05
+  ],
+  "loop": false
+ },
+ "BodyFall": {
+  "files": [
+   "Player/BodyFall_01",
+   "Player/BodyFall_02",
+   "Player/BodyFall_03"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Impacts",
+  "volume": [
+   0.9,
+   1.0
+  ],
+  "pitch": [
+   0.92,
+   1.04
+  ],
+  "loop": false
+ },
+ "Hurt": {
+  "files": [
+   "Player/Hurt_01",
+   "Player/Hurt_02",
+   "Player/Hurt_03"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Impacts",
+  "volume": [
+   0.85,
+   1.0
+  ],
+  "pitch": [
+   0.95,
+   1.08
+  ],
+  "loop": false
+ },
+ "Revive": {
+  "files": [
+   "Player/Revive_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Default",
+  "volume": [
+   0.9,
+   0.9
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": false
+ },
+ "Effort": {
+  "files": [
+   "Player/Effort_01",
+   "Player/Effort_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Default",
+  "volume": [
+   0.9,
+   1.0
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "Breath": {
+  "files": [
+   "Player/Breath_loop"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": true
+ },
+ "Pickup": {
+  "files": [
+   "Player/Pickup_01",
+   "Player/Pickup_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.8,
+   0.9
+  ],
+  "pitch": [
+   0.95,
+   1.08
+  ],
+  "loop": false
+ },
+ "Drop": {
+  "files": [
+   "Player/Drop_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.8,
+   0.9
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "Throw": {
+  "files": [
+   "Player/Throw_01",
+   "Player/Throw_02",
+   "Player/Throw_03"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.8,
+   1.0
+  ],
+  "pitch": [
+   0.92,
+   1.1
+  ],
+  "loop": false
+ },
+ "CarryLift": {
+  "files": [
+   "Player/CarryLift_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Default",
+  "volume": [
+   0.9,
+   1.0
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "HideEnter": {
+  "files": [
+   "Player/HideEnter_01",
+   "Player/HideEnter_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.8,
+   0.9
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "HideExit": {
+  "files": [
+   "Player/HideExit_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.8,
+   0.9
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "Ping": {
+  "files": [
+   "UI/Ping_01"
+  ],
+  "category": "UI",
+  "attenuation": "None",
+  "concurrency": "UI",
+  "volume": [
+   0.9,
+   0.9
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": false
+ },
+ "UIClick": {
+  "files": [
+   "UI/Click_01"
+  ],
+  "category": "UI",
+  "attenuation": "None",
+  "concurrency": "UI",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   0.97,
+   1.03
+  ],
+  "loop": false
+ },
+ "LanternLight": {
+  "files": [
+   "Lantern/Light_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.85,
+   0.95
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "LanternOut": {
+  "files": [
+   "Lantern/Out_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.85,
+   0.95
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "LanternFire": {
+  "files": [
+   "Lantern/Fire_loop"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": true
+ },
+ "LanternTake": {
+  "files": [
+   "Lantern/Take_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.85,
+   0.95
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "OilPickup": {
+  "files": [
+   "Items/OilPickup_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.85,
+   0.95
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "MedkitPickup": {
+  "files": [
+   "Items/MedkitPickup_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Small",
+  "concurrency": "Default",
+  "volume": [
+   0.85,
+   0.95
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "StoneImpact": {
+  "files": [
+   "Throw/StoneImpact_01",
+   "Throw/StoneImpact_02",
+   "Throw/StoneImpact_03",
+   "Throw/StoneImpact_04",
+   "Throw/StoneImpact_05"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Impacts",
+  "volume": [
+   0.85,
+   1.0
+  ],
+  "pitch": [
+   0.9,
+   1.1
+  ],
+  "loop": false
+ },
+ "BottleShatter": {
+  "files": [
+   "Throw/BottleShatter_01",
+   "Throw/BottleShatter_02",
+   "Throw/BottleShatter_03"
+  ],
+  "category": "SFX",
+  "attenuation": "Loud",
+  "concurrency": "Impacts",
+  "volume": [
+   0.95,
+   1.0
+  ],
+  "pitch": [
+   0.92,
+   1.06
+  ],
+  "loop": false
+ },
+ "TrapWarn": {
+  "files": [
+   "Traps/Warn_01",
+   "Traps/Warn_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Impacts",
+  "volume": [
+   0.9,
+   1.0
+  ],
+  "pitch": [
+   0.97,
+   1.03
+  ],
+  "loop": false
+ },
+ "SpikeFire": {
+  "files": [
+   "Traps/SpikeFire_01",
+   "Traps/SpikeFire_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Loud",
+  "concurrency": "Impacts",
+  "volume": [
+   0.95,
+   1.0
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "PitFire": {
+  "files": [
+   "Traps/PitFire_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Loud",
+  "concurrency": "Impacts",
+  "volume": [
+   0.95,
+   1.0
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "GasFire": {
+  "files": [
+   "Traps/GasFire_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Loud",
+  "concurrency": "Impacts",
+  "volume": [
+   0.95,
+   1.0
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "TrapReset": {
+  "files": [
+   "Traps/Reset_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Impacts",
+  "volume": [
+   0.7,
+   0.8
+  ],
+  "pitch": [
+   0.97,
+   1.03
+  ],
+  "loop": false
+ },
+ "HeartUse": {
+  "files": [
+   "Center/HeartUse_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Loud",
+  "concurrency": "Default",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": false
+ },
+ "Heartbeat": {
+  "files": [
+   "Center/Heartbeat_loop"
+  ],
+  "category": "SFX",
+  "attenuation": "Medium",
+  "concurrency": "Default",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": true
+ },
+ "RelicTake": {
+  "files": [
+   "Center/RelicTake_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Loud",
+  "concurrency": "Default",
+  "volume": [
+   0.9,
+   0.9
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": false
+ },
+ "StingerExit": {
+  "files": [
+   "Stingers/ExitOpen_01"
+  ],
+  "category": "UI",
+  "attenuation": "None",
+  "concurrency": "UI",
+  "volume": [
+   0.9,
+   0.9
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": false
+ },
+ "StingerVictory": {
+  "files": [
+   "Stingers/Victory_01"
+  ],
+  "category": "UI",
+  "attenuation": "None",
+  "concurrency": "UI",
+  "volume": [
+   0.9,
+   0.9
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": false
+ },
+ "StingerDefeat": {
+  "files": [
+   "Stingers/Defeat_01"
+  ],
+  "category": "UI",
+  "attenuation": "None",
+  "concurrency": "UI",
+  "volume": [
+   0.9,
+   0.9
+  ],
+  "pitch": [
+   1,
+   1
+  ],
+  "loop": false
+ },
+ "MinoStep": {
+  "files": [
+   "Minotaur/Step_01",
+   "Minotaur/Step_02",
+   "Minotaur/Step_03",
+   "Minotaur/Step_04"
+  ],
+  "category": "SFX",
+  "attenuation": "Beast",
+  "concurrency": "Minotaur",
+  "volume": [
+   0.9,
+   1.0
+  ],
+  "pitch": [
+   0.9,
+   1.05
+  ],
+  "loop": false
+ },
+ "MinoSnort": {
+  "files": [
+   "Minotaur/Snort_01",
+   "Minotaur/Snort_02",
+   "Minotaur/Snort_03"
+  ],
+  "category": "SFX",
+  "attenuation": "Beast",
+  "concurrency": "Minotaur",
+  "volume": [
+   0.85,
+   1.0
+  ],
+  "pitch": [
+   0.92,
+   1.05
+  ],
+  "loop": false
+ },
+ "MinoRoar": {
+  "files": [
+   "Minotaur/Roar_01",
+   "Minotaur/Roar_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Beast",
+  "concurrency": "Minotaur",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   0.95,
+   1.03
+  ],
+  "loop": false
+ },
+ "MinoFireFear": {
+  "files": [
+   "Minotaur/FireFear_01"
+  ],
+  "category": "SFX",
+  "attenuation": "Beast",
+  "concurrency": "Minotaur",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "MinoAttack": {
+  "files": [
+   "Minotaur/Attack_01",
+   "Minotaur/Attack_02"
+  ],
+  "category": "SFX",
+  "attenuation": "Beast",
+  "concurrency": "Minotaur",
+  "volume": [
+   1,
+   1
+  ],
+  "pitch": [
+   0.95,
+   1.05
+  ],
+  "loop": false
+ },
+ "AmbDrip": {
+  "files": [
+   "Ambience/Drip_01",
+   "Ambience/Drip_02",
+   "Ambience/Drip_03",
+   "Ambience/Drip_04",
+   "Ambience/Drip_05"
+  ],
+  "category": "Ambience",
+  "attenuation": "Amb",
+  "concurrency": "Ambient",
+  "volume": [
+   0.5,
+   0.8
+  ],
+  "pitch": [
+   0.9,
+   1.1
+  ],
+  "loop": false
+ },
+ "AmbWind": {
+  "files": [
+   "Ambience/Wind_01",
+   "Ambience/Wind_02",
+   "Ambience/Wind_03"
+  ],
+  "category": "Ambience",
+  "attenuation": "Amb",
+  "concurrency": "Ambient",
+  "volume": [
+   0.5,
+   0.8
+  ],
+  "pitch": [
+   0.9,
+   1.1
+  ],
+  "loop": false
+ },
+ "AmbRumble": {
+  "files": [
+   "Ambience/Rumble_01",
+   "Ambience/Rumble_02"
+  ],
+  "category": "Ambience",
+  "attenuation": "Amb",
+  "concurrency": "Ambient",
+  "volume": [
+   0.5,
+   0.7
+  ],
+  "pitch": [
+   0.9,
+   1.05
+  ],
+  "loop": false
+ },
+ "AmbCreak": {
+  "files": [
+   "Ambience/Creak_01",
+   "Ambience/Creak_02",
+   "Ambience/Creak_03"
+  ],
+  "category": "Ambience",
+  "attenuation": "Amb",
+  "concurrency": "Ambient",
+  "volume": [
+   0.4,
+   0.6
+  ],
+  "pitch": [
+   0.85,
+   1.0
+  ],
+  "loop": false
+ },
+ "_AmbientBed": {
+  "files": [
+   "Ambience/Bed_loop"
+  ],
+  "category": "Ambience",
+  "loop": true
+ },
+ "_Music": {
+  "files": [
+   "Music/Calm_loop",
+   "Music/Tension_loop",
+   "Music/Chase_loop"
+  ],
+  "category": "Music",
+  "loop": true
+ }
+}

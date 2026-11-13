@@ -51,6 +51,14 @@ void ALabPlayerController::BeginPlay()
 
 void ALabPlayerController::ReturnToMenu()
 {
+	if (!IsEscConfirmPending())
+	{
+		EscConfirmUntil = FPlatformTime::Seconds() + 3.0;
+		UE_LOG(LogLabrynn, Log, TEXT("Esc: pedir confirmación para salir"));
+		return;
+	}
+	EscConfirmUntil = 0.0;
+	UE_LOG(LogLabrynn, Log, TEXT("Esc: confirmado, vuelve al menú"));
 	if (ULabSessionSubsystem* S = GetGameInstance()->GetSubsystem<ULabSessionSubsystem>())
 	{
 		S->LeaveGame();
@@ -131,6 +139,10 @@ void ALabPlayerController::TickKeyScript()
 void ALabPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	if (NextNetStatsTime - GetWorld()->GetTimeSeconds() > 15.f)
+	{
+		NextNetStatsTime = GetWorld()->GetTimeSeconds() + 10.f; // tras un viaje seamless el tiempo del mundo vuelve a 0
+	}
 	if (IsLocalController() && GetWorld()->GetTimeSeconds() >= NextNetStatsTime)
 	{
 		NextNetStatsTime = GetWorld()->GetTimeSeconds() + 10.f;

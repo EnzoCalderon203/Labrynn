@@ -244,6 +244,8 @@ protected:
 	/** E mantenida (cliente): para distinguir tocar (levantar) de mantener (cargar). */
 	bool bInteractHeld = false;
 	float InteractPressTime = 0.f;
+	/** Servidor: cuándo empezó a cargar (una E que llega enseguida, por lag, no lo suelta). */
+	float CarryStartTime = -100.f;
 	TWeakObjectPtr<ALabCharacter> InteractHoldTarget;
 
 	// Dar la mano (arriba: mantiene E; abajo: salta + E).

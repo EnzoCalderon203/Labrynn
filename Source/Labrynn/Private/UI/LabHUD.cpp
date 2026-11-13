@@ -1,4 +1,5 @@
 ﻿#include "UI/LabHUD.h"
+#include "Core/LabPlayerController.h"
 #include "Core/LabGameplaySettings.h"
 
 #include "Player/LabCharacter.h"
@@ -217,6 +218,19 @@ void ALabHUD::DrawHUD()
 			float W, H;
 			GetTextSize(Prompt, W, H, Font, 1.3f);
 			DrawText(Prompt, FLinearColor::White, (Canvas->ClipX - W) * 0.5f, Canvas->ClipY * 0.62f, Font, 1.3f);
+		}
+	}
+
+	// Esc una vez: confirmar salida.
+	if (const ALabPlayerController* LPC = Cast<ALabPlayerController>(GetOwningPlayerController()))
+	{
+		if (LPC->IsEscConfirmPending())
+		{
+			const FString Esc = TEXT("Apretá Esc de nuevo para salir al menú (se cierra la partida)");
+			float W, H;
+			GetTextSize(Esc, W, H, Font, 1.4f);
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), (Canvas->ClipX - W) * 0.5f - 16.f, Canvas->ClipY * 0.45f - 8.f, W + 32.f, H + 16.f);
+			DrawText(Esc, FLinearColor(1.f, 0.85f, 0.4f), (Canvas->ClipX - W) * 0.5f, Canvas->ClipY * 0.45f, Font, 1.4f);
 		}
 	}
 

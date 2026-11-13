@@ -33,10 +33,12 @@ ALabGameMode::ALabGameMode()
 	DefaultPawnClass = ALabCharacter::StaticClass();
 	HUDClass = ALabHUD::StaticClass();
 	PlayerStateClass = ALabPlayerState::StaticClass();
+	// Reinicio de ronda sin recrear la conexión: con SteamSockets, recargar el mapa "a lo bruto" fallaba
+	// (InitListen failed → NetDriverListenFailure → todos al menú). Seamless mantiene el net driver y a los clientes.
+	bUseSeamlessTravel = true;
 	RelicClass = ALabRelic::StaticClass();
 	static ConstructorHelpers::FObjectFinder<ULabGameplaySettings> GameplayDA(TEXT("/Game/Labrynn/Core/DA_Gameplay.DA_Gameplay"));
 	GameplaySettings = GameplayDA.Object;
-	bUseSeamlessTravel = false;
 
 	// Blueprints hijos con meshes/animaciones/input asignados (contenido de la plantilla First Person).
 	static ConstructorHelpers::FClassFinder<APawn> PawnBP(TEXT("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"));

@@ -11,6 +11,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Widgets/Input/SSlider.h"
 #include "Audio/LabAudio.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #define LOCTEXT_NAMESPACE "LabMainMenu"
 
@@ -34,6 +36,12 @@ void SLabMainMenu::Construct(const FArguments& InArgs)
 
 	const FString Service = Sessions.IsValid() ? Sessions->GetOnlineServiceName() : TEXT("?");
 	const FString Player = Sessions.IsValid() ? Sessions->GetLocalPlayerName() : TEXT("?");
+	// Sin Steam: aviso claro (en la prueba, Luis tenía otra ventana abierta y buscaba en red local sin saberlo).
+	const bool bNoSteamWanted = FParse::Param(FCommandLine::Get(), TEXT("nosteam"));
+	const bool bSteamMissing = Service != TEXT("STEAM") && !bNoSteamWanted;
+	const FText ServiceNote = bSteamMissing
+		? LOCTEXT("NoSteam", "Steam no disponible. Abrí Steam e iniciá sesión, o usá Unirse por IP.\n(Si ya está abierto: cerrá otras ventanas de Labrynn y volvé a abrir el juego.)")
+		: (bNoSteamWanted ? LOCTEXT("IpMode", "Modo IP directa (sin Steam): Crear partida o Unirse por IP.") : FText::GetEmpty());
 
 	ChildSlot
 	[
@@ -58,6 +66,14 @@ void SLabMainMenu::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(FText::FromString(FString::Printf(TEXT("%s  ·  servicio: %s"), *Player, *Service)))
 					.Font(Font(12)).ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, ServiceNote.IsEmpty() ? 0 : 16)
+				[
+					SNew(STextBlock)
+					.Visibility(ServiceNote.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible)
+					.Text(ServiceNote).Justification(ETextJustify::Center).AutoWrapText(true)
+					.Font(Font(bSteamMissing ? 15 : 12))
+					.ColorAndOpacity(bSteamMissing ? FLinearColor(1.f, 0.25f, 0.2f) : FLinearColor(0.6f, 0.75f, 0.9f))
 				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)

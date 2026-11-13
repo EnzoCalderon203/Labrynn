@@ -1270,11 +1270,19 @@ AActor* ALabCharacter::FindBestInteractable() const
 
 	AActor* Best = nullptr;
 	float BestScore = -1.f;
+	// Lo que uno lleva (reliquia, farol) está pegado adelante y ganaba siempre: al querer juntar una botella
+	// se soltaba la reliquia (prueba por Steam, 13/11). Ahora solo se elige si no hay otra cosa.
+	AActor* Held = nullptr;
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
 		ILabInteractable* I = Cast<ILabInteractable>(*It);
 		if (!I || !I->CanInteract(this))
 		{
+			continue;
+		}
+		if ((CarriedRelic.Get() == *It) || (HeldLantern.Get() == *It))
+		{
+			Held = *It;
 			continue;
 		}
 		const FVector To = It->GetActorLocation() - Eye;
@@ -1299,7 +1307,7 @@ AActor* ALabCharacter::FindBestInteractable() const
 			Best = *It;
 		}
 	}
-	return Best;
+	return Best ? Best : Held;
 }
 
 ALabCharacter* ALabCharacter::FindTeammateInFront() const
@@ -1510,6 +1518,7 @@ void ALabCharacter::StartCarry(ALabCharacter* Body)
 	Body->Reviver.Reset();
 	CarriedBody = Body;
 	Body->CarriedBy = this;
+	CarryStartTime = GetWorld()->GetTimeSeconds();
 	Body->ApplyCarriedPose();
 	PlaySfxAll(ELabSfx::CarryLift);
 	UE_LOG(LogLabrynn, Log, TEXT("Cargar: %s carga al hombro a %s"), *GetName(), *Body->GetName());
@@ -1578,6 +1587,11 @@ void ALabCharacter::ServerInteract_Implementation()
 	}
 	if (CarriedBody)
 	{
+		// Con ~100 ms de ping, una segunda E rápida llegaba justo después de levantarlo y lo soltaba (prueba por Steam, 13/11).
+		if (GetWorld()->GetTimeSeconds() - CarryStartTime < 0.8f)
+		{
+			return;
+		}
 		DropCarried(); // cargando a alguien, E lo suelta
 		return;
 	}

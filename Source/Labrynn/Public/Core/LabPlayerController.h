@@ -18,6 +18,13 @@ class LABRYNN_API ALabPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	/** Esc una vez = aviso; Esc de nuevo antes de esto (tiempo real) = salir. Evita cerrar la partida sin querer. */
+	double EscConfirmUntil = 0.0;
+	bool IsEscConfirmPending() const { return FPlatformTime::Seconds() < EscConfirmUntil; }
+
+private:
+
+public:
 	ALabPlayerController();
 
 protected:
@@ -27,6 +34,8 @@ protected:
 	/** Sale de la sesión y vuelve al menú (tecla Esc). */
 	UFUNCTION(BlueprintCallable, Category = "Lab|Online")
 	void ReturnToMenu();
+
+
 
 	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
 	TArray<TObjectPtr<UInputMappingContext>> DefaultMappingContexts;

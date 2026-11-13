@@ -1,4 +1,4 @@
-# Prueba online por Steam: Enzo ↔ Luis
+﻿# Prueba online por Steam: Enzo ↔ Luis
 
 **Qué zip usar:** `LabrynnTeam_Labrynn_PRUEBA_DEV.zip`. Es el build *Development*: igual al juego final, pero **escribe un log completo**
 de red, Steam y voz. El Shipping, que es el de la entrega, no escribe log. Pesa unos 300 MB.
@@ -11,13 +11,13 @@ de red, Steam y voz. El Shipping, que es el de la entrega, no escribe log. Pesa 
    - Si aparece **"Windows protegió tu PC"** (SmartScreen): *Más información* → **Ejecutar de todas formas**.
    - Si aparece el **Firewall de Windows**: marcá las dos casillas (redes privadas y públicas) → **Permitir**.
      Si no lo permitís, nadie se va a poder conectar a tu partida.
-4. En el menú tiene que decir **`servicio: STEAM`** debajo del título. Si dice `NULL`, el juego no vio a Steam:
-   cerralo, verificá que Steam esté abierto y probá de nuevo.
+4. En el menú tiene que decir **`servicio: STEAM`** debajo del título. Si aparece el **aviso en rojo** ("Steam no disponible"),
+   el juego no vio a Steam: Steam cerrado, o **otra ventana de Labrynn abierta** (fijate en el Administrador de tareas). Cerrá todo y abrí una sola vez.
 5. **Micrófono:** Windows → Configuración → Privacidad → Micrófono → "Permitir que las aplicaciones de escritorio accedan" **activado**.
 
 ## 2. Crear y unirse
 
-- **Enzo** → **Crear partida**.
+- **Enzo** → **Crear partida** y se queda **dentro del laberinto** (salir con Esc cierra la partida para todos; ahora pide apretar Esc **dos veces**).
 - **Luis** → **Buscar partidas** → aparece **"Unirse a Enzo (1/4)"** → clic.
   - Si no aparece: esperá 10 s y buscá de nuevo.
   - Otra opción: **Shift+Tab** (overlay de Steam) → Amigos → clic derecho en Enzo → **Unirse a la partida**.

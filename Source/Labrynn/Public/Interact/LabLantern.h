@@ -112,6 +112,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lab|Lantern")
 	TObjectPtr<UPointLightComponent> Flame;
 
+	/** Relleno tenue de radio grande (desvanecimiento gradual más allá de la luz principal). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lab|Lantern")
+	TObjectPtr<UPointLightComponent> Fill;
+
+	/** Toma intensidad y radios de DA_Visuals (cuando el laberinto ya existe). */
+	void ApplyVisualSettings();
+	bool bVisualsApplied = false;
+	/** Pruebas de visibilidad (-LabEyeTest): sin parpadeo, para medir siempre lo mismo. */
+	bool bNoFlicker = false;
+	float FillIntensity = 0.f;
+
 	UPROPERTY(ReplicatedUsing = OnRep_Holder)
 	TObjectPtr<ALabCharacter> Holder;
 

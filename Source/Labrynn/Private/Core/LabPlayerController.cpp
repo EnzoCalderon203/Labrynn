@@ -221,7 +221,14 @@ void ALabPlayerController::DoAutoShot()
 	FTimerHandle H;
 	GetWorldTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this]()
 	{
-		const FString Name = GetNetMode() == NM_Client ? TEXT("Client.png") : TEXT("Server.png");
+		FString Name = GetNetMode() == NM_Client ? TEXT("Client.png") : TEXT("Server.png");
+		FString Custom;
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabShotName="), Custom)) { Name = Custom + TEXT(".png"); }
+		if (PlayerCameraManager)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[AutoShot] cam=%s rot=%s fov=%.1f"), *PlayerCameraManager->GetCameraLocation().ToCompactString(),
+				*PlayerCameraManager->GetCameraRotation().ToCompactString(), PlayerCameraManager->GetFOVAngle());
+		}
 		FScreenshotRequest::RequestScreenshot(FPaths::ScreenShotDir() / Name, /*bShowUI*/ false, /*bAddUniqueSuffix*/ false);
 	}), 0.5f, false);
 }

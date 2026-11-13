@@ -5,6 +5,10 @@
 #include "Player/LabCharacter.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Core/LabGameState.h"
+#include "Maze/LabMaze.h"
+#include "Maze/LabVisualSettings.h"
+#include "Misc/CommandLine.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
@@ -52,6 +56,16 @@ ALabLantern::ALabLantern()
 	Flame->SetLightColor(FLinearColor(1.f, 0.62f, 0.28f));
 	Flame->SetCastShadows(true);
 	Flame->SetSourceRadius(4.f);
+	Flame->bUseInverseSquaredFalloff = true;
+
+	Fill = CreateDefaultSubobject<UPointLightComponent>(TEXT("Fill"));
+	Fill->SetupAttachment(Root);
+	Fill->SetRelativeLocation(FVector(0.f, 0.f, 30.f));
+	Fill->SetLightColor(FLinearColor(1.f, 0.7f, 0.42f));
+	Fill->SetIntensityUnits(ELightUnits::Unitless);
+	Fill->bUseInverseSquaredFalloff = false;
+	Fill->SetCastShadows(true); // que no "atraviese" paredes hacia otros pasillos
+	Fill->SetVisibility(false);
 }
 
 void ALabLantern::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -82,6 +96,7 @@ bool ALabLantern::IsRepelling() const
 void ALabLantern::BeginPlay()
 {
 	Super::BeginPlay();
+	bNoFlicker = FCString::Strifind(FCommandLine::Get(), TEXT("LabEyeTest")) != nullptr;
 	FlickerSeed = FMath::FRand() * 100.f; // cada farol parpadea distinto
 	OnRep_Lit(bLit);
 }
@@ -152,7 +167,10 @@ void ALabLantern::Tick(float DeltaSeconds)
 		const float Unstable = Oil < 0.2f ? 0.35f : 0.12f;
 		const float N = FMath::PerlinNoise1D(FlickerSeed * 7.f) * 0.5f + FMath::PerlinNoise1D(FlickerSeed * 23.f) * 0.25f;
 		const float LowOil = Oil < 0.2f ? FMath::Lerp(0.45f, 1.f, Oil / 0.2f) : 1.f;
-		Flame->SetIntensity(LightIntensity * LowOil * (1.f + Unstable * N));
+		const float Flick = bNoFlicker ? 1.f : (1.f + Unstable * N);
+		ApplyVisualSettings();
+		Flame->SetIntensity(LightIntensity * LowOil * Flick);
+		Fill->SetIntensity(FillIntensity * LowOil * Flick);
 	}
 }
 
@@ -169,7 +187,9 @@ void ALabLantern::SetLit(bool bNewLit)
 
 void ALabLantern::OnRep_Lit(bool bWasLit)
 {
+	ApplyVisualSettings();
 	Flame->SetVisibility(bLit);
+	Fill->SetVisibility(bLit);
 	Flame->SetAttenuationRadius(LightRadius);
 	if (bWasLit != bLit && GetNetMode() != NM_DedicatedServer)
 	{
@@ -310,3 +330,27 @@ void ALabLantern::Refill()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+void ALabLantern::ApplyVisualSettings()
+{
+	if (bVisualsApplied)
+	{
+		return;
+	}
+	const ALabGameState* GS = GetWorld() ? GetWorld()->GetGameState<ALabGameState>() : nullptr;
+	const ALabMaze* Maze = GS ? GS->GetMaze() : nullptr;
+	if (!Maze)
+	{
+		return;
+	}
+	const ULabVisualSettings* V = Maze->GetVisualSettings();
+	bVisualsApplied = true;
+	LightIntensity = V->LanternIntensity;
+	LightRadius = V->LanternRadius;
+	FillIntensity = V->LanternFillIntensity;
+	Flame->SetAttenuationRadius(LightRadius);
+	Fill->SetAttenuationRadius(V->LanternFillRadius);
+	Fill->SetLightFalloffExponent(V->LanternFillExponent);
+	Flame->SetIntensity(LightIntensity);
+	Fill->SetIntensity(FillIntensity);
+}

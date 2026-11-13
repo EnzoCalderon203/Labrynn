@@ -49,13 +49,14 @@ public:
 	FLinearColor MossEmissive = FLinearColor(0.04f, 0.32f, 0.08f) * 4.f;
 
 	// --- Adaptación ocular (cámara local) ---
-	/** Exposición base (EV). */
+	/** Exposición base (EV). Casi fija: con o sin farol es la misma, así la luz del farol solo SUMA visibilidad. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ojos")
-	float BaseExposureBias = 4.0f;
+	float BaseExposureBias = 6.3f;
 
-	/** EV extra con los ojos totalmente adaptados a la oscuridad. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ojos")
-	float DarkAdaptExtraBias = 2.8f;
+	/** EV extra con los ojos adaptados a la oscuridad. Leve a propósito (0,2 EV ≈ +15 %): si fuera grande,
+	 *  sin farol se vería mejor que con farol (la adaptación se pierde cerca de la luz). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ojos", meta = (ClampMin = 0, ClampMax = 0.3))
+	float DarkAdaptExtraBias = 0.2f;
 
 	/** Segundos lejos de la luz para adaptarse por completo (lento a propósito). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ojos", meta = (ClampMin = 0.5))
@@ -77,15 +78,34 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Encandilamiento")
 	float GlareDot = 0.9f;
 
+	/** Breve y suave: solo un destello (no apaga lo de afuera). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Encandilamiento")
-	float GlareExtraBias = 1.6f;
+	float GlareExtraBias = 0.3f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Encandilamiento")
-	float GlareBloom = 4.f;
+	float GlareBloom = 1.5f;
 
-	/** Duración del encandilamiento (s). Se multiplica por cuánto estaban adaptados los ojos. */
+	/** Duración del encandilamiento (s). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Encandilamiento")
-	float GlareSeconds = 1.2f;
+	float GlareSeconds = 0.5f;
+
+	// --- Luz del farol (principal cálida + relleno tenue de radio grande: desvanecimiento gradual, sin corte) ---
+	/** Luz principal (caída física 1/d², con sombras). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Farol")
+	float LanternIntensity = 200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Farol")
+	float LanternRadius = 1800.f;
+
+	/** Relleno: tenue, sin unidades, caída suave (exponente bajo); llega lejos y se funde con la penumbra base. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Farol")
+	float LanternFillIntensity = 0.06f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Farol")
+	float LanternFillRadius = 2200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Farol", meta = (ClampMin = 0.5, ClampMax = 8))
+	float LanternFillExponent = 1.6f;
 
 	// --- Visión mínima (luz suave solo en TU pantalla: no ilumina a los demás ni delata) ---
 	/** Brillo de la luz de visión local (sin unidades, caída suave). 0 = desactivada. */

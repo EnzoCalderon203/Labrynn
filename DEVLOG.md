@@ -495,6 +495,31 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
   Tampoco el clic de los botones del menú: las pruebas no pueden hacer clic en Slate.
 - Tamaño: 88 WAV fuente (48,7 MB) más 112 assets (22 MB) en LFS.
 - **Build Shipping OK:** zip de **295 MB** (antes 291). Se verificó en el índice del paquete (`.utoc`) que están `DA_Audio`, las 3 capas de música, la mezcla, las atenuaciones y la concurrencia: el cook ahora incluye siempre `/Game/Labrynn/Core` y `/Game/Labrynn/Audio` (`DirectoriesToAlwaysCook`), porque se cargan por ruta.
+**13/11 15:25 · Bug de visibilidad: se veía mejor SIN farol que con farol (prioridad alta)**
+- **Causas:**
+  1. La adaptación ocular subía la exposición **+2,8 EV (×7)** a oscuras y se perdía cerca de un farol. Con farol, todo lo que quedaba fuera de su radio se veía hasta 7 veces más oscuro.
+  2. La luz del farol tenía radio de atenuación de **6,5 m**: más allá, negro absoluto (corte brusco).
+- **Arreglo** (todo en `DA_Visuals`):
+  - **Exposición casi fija:** base 6,3 EV, y la adaptación suma como máximo **+0,2 EV (≈ +15 %)** (antes era +2,8).
+  - **Encandilamiento breve y suave:** +0,3 EV, bloom 1,5 y 0,5 s (antes +1,6 EV, bloom 4 y 1,2 s).
+  - **Farol** = luz principal cálida con **caída física 1/d², radio 18 m**, más una luz de **relleno** tenue (sin unidades, exponente 1,6, radio 22 m, con sombras para que no atraviese paredes).
+    La intensidad, los radios y el exponente están en `DA_Visuals` (categoría *Farol*).
+  - La penumbra base (luna, musgo y visión mínima local) queda igual con o sin farol.
+- **Crash de GPU (regla de Enzo):** con la luz de relleno, el caso "farol en el piso" daba **"GPU Crashed or D3D Device Removed"** a los ~30 s, reproducible solo.
+  Con `r.Shadow.Virtual.Enable 0` no crashea → **virtual shadow maps desactivadas** en `DefaultEngine.ini` (vuelve a sombras clásicas).
+- **Verificación** (`Scripts/eye_test.ps1` + `Scripts/eye_bands.py`):
+  - Mismo punto y misma dirección: inicio del pasillo recto más largo (31 m), mirando a lo largo, cámara a 1,62 m, inclinada −20°, FOV 90, HUD oculto y farol sin parpadeo.
+  - Captura a los 65 s en los 3 casos.
+  - Brillo medio (luma sRGB 0–255) del piso en una franja central, con la distancia de cada fila calculada por geometría:
+
+| Franja | Sin farol (60 s a oscuras) | Farol en la mano | Farol en el piso a 3 m | Con farol ≥ sin farol |
+|---|---|---|---|---|
+| 0–3 m | 50.2 | 131.5 | 144.2 | ✅ |
+| 3–8 m | 22.8 | 64.6 | 117.4 | ✅ |
+| 8–15 m | 0.3 | 15.2 | 14.3 | ✅ |
+
+  Exposición en la captura: sin farol 6,50 EV (adaptado); con farol 6,30 EV.
+  Visualmente: sin farol se ve una penumbra fría con el piso y algo de pared cerca; con farol, luz cálida fuerte que se desvanece de forma gradual por el pasillo, sin corte.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

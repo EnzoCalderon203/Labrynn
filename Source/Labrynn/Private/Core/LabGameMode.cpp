@@ -456,6 +456,65 @@ void ALabGameMode::StartPlay()
 		}
 	}
 
+	// -LabEyeTest=T -LabEyeLantern=none|hand|floor: host al inicio del pasillo recto más largo, mirando a lo largo
+	// (pitch -20), para medir el brillo por franjas de distancia. hand = farol encendido en la mano; floor = farol en el piso a 3 m.
+	{
+		float At = 0.f;
+		if (FParse::Value(FCommandLine::Get(), TEXT("LabEyeTest="), At))
+		{
+			FTimerHandle TE;
+			GetWorldTimerManager().SetTimer(TE, FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				ALabCharacter* Host = PC ? Cast<ALabCharacter>(PC->GetPawn()) : nullptr;
+				const ALabMaze* Maze = GetGameState<ALabGameState>() ? GetGameState<ALabGameState>()->GetMaze() : nullptr;
+				if (!Host || !Maze) { return; }
+				const FLabMazeLayout& L = Maze->GetLayout();
+				static const FIntPoint Dirs[4] = { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) };
+				FIntPoint BestC(0, 0), BestD(1, 0);
+				int32 Best = 0;
+				for (int32 X = 0; X < L.Width; ++X)
+				{
+					for (int32 Y = 0; Y < L.Height; ++Y)
+					{
+						for (const FIntPoint& D : Dirs)
+						{
+							int32 N = 0;
+							FIntPoint C(X, Y);
+							while (!L.HasWallBetween(C, D) && !Maze->GetObstacles().Contains(C + D) && !Maze->GetPitCells().Contains(C + D) && !L.IsInCenterRoom(C + D)
+								&& C.X + D.X >= 0 && C.Y + D.Y >= 0 && C.X + D.X < L.Width && C.Y + D.Y < L.Height)
+							{
+								C += D;
+								++N;
+							}
+							if (N > Best && !Maze->GetObstacles().Contains(FIntPoint(X, Y))) { Best = N; BestC = FIntPoint(X, Y); BestD = D; }
+						}
+					}
+				}
+				const FVector Dir(BestD.X, BestD.Y, 0.f);
+				const FVector Start = Maze->CellToWorld(BestC) - Dir * Maze->CellSize * 0.35f;
+				Host->SetActorLocation(FVector(Start.X, Start.Y, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+				PC->SetControlRotation(FRotator(-20.f, Dir.Rotation().Yaw, 0.f));
+				if (PC->GetHUD()) { PC->GetHUD()->bShowHUD = false; } // el HUD no entra en la medición
+				FString Mode = TEXT("none");
+				FParse::Value(FCommandLine::Get(), TEXT("LabEyeLantern="), Mode);
+				for (TActorIterator<ALabLantern> It(GetWorld()); It; ++It)
+				{
+					if (Mode == TEXT("hand")) { It->SetHolder(Host); It->Refill(); break; }
+					if (Mode == TEXT("floor"))
+					{
+						It->SetHolder(nullptr);
+						It->SetActorLocation(FVector(Start.X, Start.Y, 0.f) + Dir * 300.f, false, nullptr, ETeleportType::TeleportPhysics);
+						It->Refill();
+						break;
+					}
+				}
+				UE_LOG(LogLabrynn, Log, TEXT("[EyeTest] modo=%s pasillo=%d celdas (%.0f m) desde %s dir=%s piso=0"), *Mode, Best + 1,
+					(Best + 0.85f) * Maze->CellSize / 100.f, *Start.ToCompactString(), *Dir.ToCompactString());
+			}), At, false);
+		}
+	}
+
 	// Prueba automática de stamina: el host corre (ida y vuelta) hasta quedarse sin aire; el cliente recibe heridas;
 	// el host se hiere y usa un botiquín; al final las heridas del cliente llenan la barra y cae.
 	static bool bAutoStaminaDone = false;

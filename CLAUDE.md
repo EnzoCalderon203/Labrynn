@@ -113,7 +113,9 @@ Se mueve con BFS sobre `FLabMazeLayout` (sin NavMesh). Toda acción nueva que de
   Guiones por rol: `-LabKeysHost=...` / `-LabKeysClient=...`. Preparadores de escenario (solo dev): `-LabTeleportTo{Relic,Table,Hide,Client,Throwable,Spike}=T`,
   `-LabTeleportToObstacle=N -LabObstacleType=rubble|tunnel`, `-LabLedgeSetup`, `-LabDownClient=T`, `-LabWoundHost=T`, `-LabThrowClient`, `-LabThrowKind=bottle`,
   `-LabMinotaurSpawnDist=N`. Se verifica primero por logs (`LogLabrynn`); capturas solo si es imprescindible.
-- Si vuelven los crash de GPU: probar `r.Shadow.Virtual.Enable=0` y anotarlo en el DEVLOG.
+- **Virtual shadow maps desactivadas** (`r.Shadow.Virtual.Enable=0` en DefaultEngine.ini, 13/11): con las luces del farol daban "GPU Crashed / D3D Device Removed".
+- **Visibilidad:** la exposición es casi fija (la adaptación suma como máximo +0,2 EV). Regla: con farol ≥ sin farol a cualquier distancia.
+  Se verifica con `Scripts/eye_test.ps1` (3 capturas + tabla por franjas de distancia).
 
 ## Convenciones de código
 

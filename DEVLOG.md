@@ -494,6 +494,7 @@ el jugador mira al compañero, saca una captura y cierra el juego. Así puede ve
 - **No verificado:** cómo suena (Claude no puede escuchar). Lista de "qué escuchar" en **PENDIENTES 2g**.
   Tampoco el clic de los botones del menú: las pruebas no pueden hacer clic en Slate.
 - Tamaño: 88 WAV fuente (48,7 MB) más 112 assets (22 MB) en LFS.
+- **Build Shipping OK:** zip de **295 MB** (antes 291). Se verificó en el índice del paquete (`.utoc`) que están `DA_Audio`, las 3 capas de música, la mezcla, las atenuaciones y la concurrencia: el cook ahora incluye siempre `/Game/Labrynn/Core` y `/Game/Labrynn/Audio` (`DirectoriesToAlwaysCook`), porque se cargan por ruta.
 ## 📋 RESUMEN PARA ENZO (15:41) (reemplaza al de las 14:45)
 
 > Decisión de comunicación del online (14:45, sigue vigente): **Steam con AppID 480**.

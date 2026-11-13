@@ -1,4 +1,5 @@
-#include "Interact/LabMedkitPickup.h"
+﻿#include "Interact/LabMedkitPickup.h"
+#include "Audio/LabAudio.h"
 
 #include "Player/LabCharacter.h"
 #include "Player/LabStaminaSettings.h"
@@ -54,10 +55,7 @@ void ALabMedkitPickup::Interact(ALabCharacter* By)
 void ALabMedkitPickup::MulticastPickedUp_Implementation()
 {
 	SetActorHiddenInGame(true);
-	if (PickupSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, PickupSound, GetActorLocation());
-	}
+	ULabAudio::Play(this, ELabSfx::MedkitPickup, GetActorLocation());
 }
 
 #undef LOCTEXT_NAMESPACE

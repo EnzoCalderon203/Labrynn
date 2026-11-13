@@ -1,4 +1,5 @@
-#include "Interact/LabOilFlask.h"
+﻿#include "Interact/LabOilFlask.h"
+#include "Audio/LabAudio.h"
 
 #include "Player/LabCharacter.h"
 #include "Interact/LabLantern.h"
@@ -55,10 +56,7 @@ void ALabOilFlask::Interact(ALabCharacter* By)
 void ALabOilFlask::MulticastPickedUp_Implementation()
 {
 	SetActorHiddenInGame(true);
-	if (PickupSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, PickupSound, GetActorLocation());
-	}
+	ULabAudio::Play(this, ELabSfx::OilPickup, GetActorLocation());
 }
 
 #undef LOCTEXT_NAMESPACE

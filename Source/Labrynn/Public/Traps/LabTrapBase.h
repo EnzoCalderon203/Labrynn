@@ -1,7 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Audio/LabAudioSettings.h"
 #include "LabTrapBase.generated.h"
 
 class UBoxComponent;
@@ -29,6 +30,9 @@ class LABRYNN_API ALabTrapBase : public AActor
 	GENERATED_BODY()
 
 public:
+	/** Sonido al dispararse (cada trampa tiene el suyo). */
+	virtual ELabSfx GetFireSfx() const { return ELabSfx::SpikeFire; }
+
 	ALabTrapBase();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -61,14 +65,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Trap")
 	float CooldownTime = 3.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Trap|Audio")
-	TObjectPtr<USoundBase> WarnSound;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Trap|Audio")
-	TObjectPtr<USoundBase> FireSound;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Trap|Audio")
-	TObjectPtr<USoundBase> ResetSound;
 
 	/** Visual/sonido según el estado. Corre en todas las máquinas. */
 	virtual void OnStateChanged(ELabTrapState OldState);

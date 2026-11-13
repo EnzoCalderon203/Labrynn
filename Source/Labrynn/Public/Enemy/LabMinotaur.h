@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Audio/LabAudioSettings.h"
 #include "LabMinotaur.generated.h"
 
 class UPointLightComponent;
@@ -41,18 +42,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Minotaur")
 	TObjectPtr<ULabMinotaurSettings> Settings;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Minotaur|Audio")
-	TObjectPtr<USoundBase> FootstepSound;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Minotaur|Audio")
-	TObjectPtr<USoundBase> SnortSound;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Minotaur|Audio")
-	TObjectPtr<USoundBase> RoarSound;
 
-	/** Bramido de dolor/miedo al toparse con el fuego. */
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Minotaur|Audio")
-	TObjectPtr<USoundBase> FireFearSound;
 
 protected:
 	virtual void BeginPlay() override;
@@ -67,7 +59,7 @@ protected:
 	bool bRepelled = false;
 
 	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastSound(USoundBase* Sound);
+	void MulticastSfx(ELabSfx Id);
 
 private:
 	void ServerThink();

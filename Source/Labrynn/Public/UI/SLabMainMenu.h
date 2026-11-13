@@ -1,8 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Online/LabSessionSubsystem.h"
+#include "Audio/LabAudioSettings.h"
 
 class SVerticalBox;
 class SEditableTextBox;
@@ -33,6 +34,7 @@ private:
 	void HandleFindComplete(const TArray<FLabSessionInfo>& Results);
 
 	TSharedRef<SWidget> MakeButton(const FText& Label, FOnClicked OnClicked);
+	TSharedRef<SWidget> MakeVolumeRow(const FText& Label, ELabAudioCategory Cat);
 
 	TWeakObjectPtr<ULabSessionSubsystem> Sessions;
 	TSharedPtr<STextBlock> StatusText;

@@ -1,4 +1,4 @@
-#include "UI/SLabMainMenu.h"
+﻿#include "UI/SLabMainMenu.h"
 
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -9,6 +9,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Styling/CoreStyle.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Widgets/Input/SSlider.h"
+#include "Audio/LabAudio.h"
 
 #define LOCTEXT_NAMESPACE "LabMainMenu"
 
@@ -86,7 +88,16 @@ void SLabMainMenu::Construct(const FArguments& InArgs)
 					[ MakeButton(LOCTEXT("JoinIP", "Unirse por IP"), FOnClicked::CreateSP(this, &SLabMainMenu::OnJoinIP)) ]
 				]
 
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)
+				// Volumen por categoría (se guarda en GameUserSettings.ini).
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 14, 0, 2)
+				[ SNew(STextBlock).Text(LOCTEXT("Vol", "Volumen")).Font(Font(14)).ColorAndOpacity(FLinearColor(0.7f, 0.65f, 0.55f)) ]
+				+ SVerticalBox::Slot().AutoHeight() [ MakeVolumeRow(LOCTEXT("VMaster", "General"), ELabAudioCategory::Master) ]
+				+ SVerticalBox::Slot().AutoHeight() [ MakeVolumeRow(LOCTEXT("VSfx", "Efectos"), ELabAudioCategory::SFX) ]
+				+ SVerticalBox::Slot().AutoHeight() [ MakeVolumeRow(LOCTEXT("VVoice", "Voz"), ELabAudioCategory::Voice) ]
+				+ SVerticalBox::Slot().AutoHeight() [ MakeVolumeRow(LOCTEXT("VMusic", "Música"), ELabAudioCategory::Music) ]
+				+ SVerticalBox::Slot().AutoHeight() [ MakeVolumeRow(LOCTEXT("VAmb", "Ambiente"), ELabAudioCategory::Ambience) ]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 4)
 				[ MakeButton(LOCTEXT("Quit", "Salir"), FOnClicked::CreateSP(this, &SLabMainMenu::OnQuit)) ]
 
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 16, 0, 0)
@@ -111,12 +122,31 @@ SLabMainMenu::~SLabMainMenu()
 
 TSharedRef<SWidget> SLabMainMenu::MakeButton(const FText& Label, FOnClicked OnClicked)
 {
+	TWeakObjectPtr<ULabSessionSubsystem> Ctx = Sessions;
 	return SNew(SButton)
 		.HAlign(HAlign_Center)
 		.ContentPadding(FMargin(16, 10))
-		.OnClicked(OnClicked)
+		.OnClicked_Lambda([Ctx, OnClicked]()
+		{
+			ULabAudio::Play2D(Ctx.Get(), ELabSfx::UIClick);
+			return OnClicked.Execute();
+		})
 		[
 			SNew(STextBlock).Text(Label).Font(Font(18))
+		];
+}
+
+TSharedRef<SWidget> SLabMainMenu::MakeVolumeRow(const FText& Label, ELabAudioCategory Cat)
+{
+	TWeakObjectPtr<ULabSessionSubsystem> Ctx = Sessions;
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 2, 10, 2)
+		[ SNew(SBox).WidthOverride(90.f) [ SNew(STextBlock).Text(Label).Font(Font(12)).ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f)) ] ]
+		+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+		[
+			SNew(SSlider)
+			.Value(ULabAudio::GetCategoryVolume(Cat))
+			.OnValueChanged_Lambda([Ctx, Cat](float V) { ULabAudio::SetCategoryVolume(Ctx.Get(), Cat, V); })
 		];
 }
 

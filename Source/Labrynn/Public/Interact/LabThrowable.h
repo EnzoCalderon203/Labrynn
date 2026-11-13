@@ -44,11 +44,7 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_Kind, BlueprintReadOnly, Category = "Lab|Throw")
 	ELabThrowKind Kind = ELabThrowKind::Stone;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Throw|Audio")
-	TObjectPtr<USoundBase> ImpactSound;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Throw|Audio")
-	TObjectPtr<USoundBase> ShatterSound;
 
 protected:
 	virtual void BeginPlay() override;

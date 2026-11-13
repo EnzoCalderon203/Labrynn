@@ -1,4 +1,6 @@
 ﻿#include "Interact/LabHeart.h"
+#include "Audio/LabAudio.h"
+#include "Components/AudioComponent.h"
 
 #include "Player/LabCharacter.h"
 #include "Interact/LabLantern.h"
@@ -43,6 +45,19 @@ void ALabHeart::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 void ALabHeart::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (bUsed == bBeatOn && GetNetMode() != NM_DedicatedServer)
+	{
+		bBeatOn = !bUsed;
+		if (bBeatOn)
+		{
+			BeatAudio = ULabAudio::PlayAttached(ELabSfx::Heartbeat, GetRootComponent());
+		}
+		else if (BeatAudio)
+		{
+			BeatAudio->FadeOut(1.5f, 0.f);
+			BeatAudio = nullptr;
+		}
+	}
 	// Late: doble pulso tipo corazón. Usado: brasa apagada.
 	PulseTime += DeltaSeconds;
 	const float T = FMath::Fmod(PulseTime, 1.1f);
@@ -88,9 +103,9 @@ void ALabHeart::Interact(ALabCharacter* By)
 
 void ALabHeart::OnRep_Used()
 {
-	if (bUsed && UseSound)
+	if (bUsed)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, UseSound, GetActorLocation());
+		ULabAudio::Play(this, ELabSfx::HeartUse, GetActorLocation());
 	}
 }
 

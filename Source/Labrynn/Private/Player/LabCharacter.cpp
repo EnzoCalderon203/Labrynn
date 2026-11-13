@@ -28,6 +28,7 @@
 #include "Net/VoiceConfig.h"
 #include "Player/LabVoipTalker.h"
 #include "Core/LabPlayerState.h"
+#include "Audio/LabAudio.h"
 #include "Maze/LabVisualSettings.h"
 #include "Core/LabGameplaySettings.h"
 #include "Interact/LabHidingSpot.h"
@@ -181,6 +182,7 @@ void ALabCharacter::EnterHiding(ALabHidingSpot* Spot)
 	bHiding = true;
 	SetActorLocation(Spot->GetActorLocation() + FVector(0.f, 0.f, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
 	ApplyHiding();
+	PlaySfxAll(ELabSfx::HideEnter);
 	UE_LOG(LogLabrynn, Log, TEXT("%s se escondió en %s%s"), *GetName(), *Spot->GetName(), HasLitLantern() ? TEXT(" (¡con el farol encendido: se lo ve!)") : TEXT(""));
 }
 
@@ -192,6 +194,7 @@ void ALabCharacter::ExitHiding()
 	}
 	ALabHidingSpot* Spot = HidingSpot.Get();
 	bHiding = false;
+	PlaySfxAll(ELabSfx::HideExit);
 	HidingSpot.Reset();
 	if (Spot)
 	{
@@ -632,9 +635,13 @@ void ALabCharacter::AddWound(float Amount, const FVector& Impulse)
 	{
 		KnockDown(Impulse); // las heridas llenaron la barra: ragdoll
 	}
-	else if (!Impulse.IsNearlyZero())
+	else
 	{
-		LaunchCharacter(Impulse, true, true); // empujón sin caer
+		PlaySfxAll(ELabSfx::Hurt);
+		if (!Impulse.IsNearlyZero())
+		{
+			LaunchCharacter(Impulse, true, true); // empujón sin caer
+		}
 	}
 }
 
@@ -672,11 +679,12 @@ void ALabCharacter::ApplyExhaustedEffects()
 {
 	// Respiración agitada: se escucha en todas las máquinas (y delata al grupo).
 	const ULabStaminaSettings* S = GetStaminaSettings();
-	if (bExhausted && S->BreathSound && GetNetMode() != NM_DedicatedServer)
+	if (bExhausted && GetNetMode() != NM_DedicatedServer)
 	{
 		if (!BreathAudio)
 		{
-			BreathAudio = UGameplayStatics::SpawnSoundAttached(S->BreathSound, GetCapsuleComponent());
+			BreathAudio = ULabAudio::PlayAttached(ELabSfx::Breath, GetCapsuleComponent());
+			if (BreathAudio) { BreathAudio->bAutoDestroy = false; }
 		}
 		else
 		{
@@ -804,10 +812,12 @@ void ALabCharacter::ApplyLifeState(ELabLifeState OldState)
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
 		StartRagdoll();
+		ULabAudio::Play(this, ELabSfx::BodyFall, GetActorLocation()); // en cada máquina (OnRep)
 	}
 	else if (!bWasAlive && bIsAlive)
 	{
 		StopRagdoll();
+		ULabAudio::Play(this, ELabSfx::Revive, GetActorLocation());
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -942,6 +952,7 @@ void ALabCharacter::Interact(ALabCharacter* By)
 		By->BoostIgnorePawns();
 		By->LaunchCharacter(Vel, true, true);
 		By->ClientLaunch(Vel); // el dueño lo predice igual (sin tirón por corrección)
+		PlaySfxAll(ELabSfx::Effort);
 		UE_LOG(LogLabrynn, Log, TEXT("Ayuda: %s hace pie de banco a %s (vel=%s, mira yaw=%.0f)"), *GetName(), *By->GetName(), *Vel.ToCompactString(), By->GetActorRotation().Yaw);
 #if !UE_BUILD_SHIPPING
 		for (const float Dt : { 0.1f, 0.3f })
@@ -1078,10 +1089,7 @@ void ALabCharacter::StartPull(ALabCharacter* Lower)
 	Lower->PulledBy = this;
 	Pulling = Lower;
 	Lower->ApplyPull();
-	if (EffortSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, EffortSound, GetActorLocation());
-	}
+	PlaySfxAll(ELabSfx::Effort);
 	UE_LOG(LogLabrynn, Log, TEXT("Ayuda: %s se agarró de la mano de %s"), *Lower->GetName(), *GetName());
 }
 
@@ -1160,6 +1168,7 @@ void ALabCharacter::Tick(float DeltaSeconds)
 	TickEyes(DeltaSeconds);
 	TickHelp(DeltaSeconds);
 	TickCrouchVisual(DeltaSeconds);
+	TickFootsteps(DeltaSeconds);
 	if (IsLocallyControlled())
 	{
 		TickCarryHold();
@@ -1387,6 +1396,7 @@ void ALabCharacter::AddThrowable(ELabThrowKind Kind)
 	if (HasAuthority() && CanCarryMoreThrowables())
 	{
 		Throwables.Add(Kind);
+		PlaySfxAll(ELabSfx::Pickup);
 		UE_LOG(LogLabrynn, Log, TEXT("Lanzable: %s juntó una %s (lleva %d)"), *GetName(), Kind == ELabThrowKind::Bottle ? TEXT("botella") : TEXT("piedra"), Throwables.Num());
 	}
 }
@@ -1459,6 +1469,7 @@ void ALabCharacter::ServerThrow_Implementation(FVector Origin, FVector Velocity)
 		T->Kind = Kind;
 		T->FinishSpawning(FTransform(Origin));
 		T->Launch(Velocity, this);
+		PlaySfxAll(ELabSfx::Throw);
 		if (FLabStats* St = GetStatsServer()) { St->Thrown++; }
 		UE_LOG(LogLabrynn, Log, TEXT("Lanzable: %s lanzó una %s (quedan %d)"), *GetName(), Kind == ELabThrowKind::Bottle ? TEXT("botella") : TEXT("piedra"), Throwables.Num());
 	}
@@ -1500,6 +1511,7 @@ void ALabCharacter::StartCarry(ALabCharacter* Body)
 	CarriedBody = Body;
 	Body->CarriedBy = this;
 	Body->ApplyCarriedPose();
+	PlaySfxAll(ELabSfx::CarryLift);
 	UE_LOG(LogLabrynn, Log, TEXT("Cargar: %s carga al hombro a %s"), *GetName(), *Body->GetName());
 }
 
@@ -1515,6 +1527,7 @@ void ALabCharacter::DropCarried()
 	Body->ApplyCarriedPose(); // vuelve al ragdoll, al lado
 	const FVector Side = GetActorForwardVector() * 70.f + FVector(0.f, 0.f, 40.f);
 	Body->SetActorLocation(GetActorLocation() + Side, false, nullptr, ETeleportType::TeleportPhysics);
+	PlaySfxAll(ELabSfx::Drop);
 	UE_LOG(LogLabrynn, Log, TEXT("Cargar: %s suelta a %s"), *GetName(), *Body->GetName());
 }
 
@@ -1708,4 +1721,67 @@ bool ALabCharacter::HasLitLantern() const
 {
 	const ALabLantern* L = HeldLantern.Get();
 	return L && L->IsLit();
+}
+// ---------------------------------------------------------------- Audio
+
+void ALabCharacter::PlaySfxAll(ELabSfx Id)
+{
+	if (HasAuthority())
+	{
+		MulticastSfx(Id, GetActorLocation());
+	}
+}
+
+void ALabCharacter::MulticastSfx_Implementation(ELabSfx Id, FVector_NetQuantize Location)
+{
+	ULabAudio::Play(this, Id, Location);
+}
+
+void ALabCharacter::TickFootsteps(float DeltaSeconds)
+{
+	if (GetNetMode() == NM_DedicatedServer || bRagdoll || CarriedBy || bHiding || !IsAliveAndFree())
+	{
+		bWasFalling = false;
+		return;
+	}
+	const UCharacterMovementComponent* CMC = GetCharacterMovement();
+	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	const bool bFalling = CMC->IsFalling();
+	if (bFalling)
+	{
+		if (!bWasFalling && GetVelocity().Z > 150.f)
+		{
+			ULabAudio::Play(this, ELabSfx::Jump, Feet + FVector(0.f, 0.f, 120.f));
+		}
+		LastFallSpeed = FMath::Min(LastFallSpeed, GetVelocity().Z);
+	}
+	else if (bWasFalling)
+	{
+		// Aterrizaje: más fuerte cuanto más rápido caía.
+		if (LastFallSpeed < -250.f)
+		{
+			ULabAudio::Play(this, ELabSfx::Land, Feet, FMath::Clamp(-LastFallSpeed / 900.f, 0.4f, 1.f));
+		}
+		StepDistance = 0.f;
+	}
+	if (!bFalling)
+	{
+		LastFallSpeed = 0.f;
+	}
+	bWasFalling = bFalling;
+
+	const float Speed = GetVelocity().Size2D();
+	if (bFalling || Speed < 60.f || !CMC->IsMovingOnGround())
+	{
+		return;
+	}
+	// Agachado: pasos cortos y suaves; corriendo: largos y fuertes (se oyen tan lejos como el ruido de sprint).
+	const bool bRun = Speed > 500.f;
+	const float Stride = bIsCrouched ? 100.f : (bRun ? 190.f : 150.f);
+	StepDistance += Speed * DeltaSeconds;
+	if (StepDistance >= Stride)
+	{
+		StepDistance = 0.f;
+		ULabAudio::Play(this, ELabSfx::Footstep, Feet, bIsCrouched ? 0.3f : (bRun ? 1.f : 0.6f));
+	}
 }

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -59,6 +59,8 @@ protected:
 
 	UFUNCTION()
 	void OnRep_Carrier(ALabCharacter* OldCarrier);
+
+	bool bTakeSoundPlayed = false;
 
 private:
 	/** Aplica adjuntado y efectos sobre portador viejo/nuevo. Corre en todas las máquinas. */

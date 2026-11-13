@@ -1,4 +1,5 @@
 ﻿#include "Enemy/LabMinotaur.h"
+#include "Audio/LabAudio.h"
 
 #include "Enemy/LabMinotaurController.h"
 #include "Enemy/LabMinotaurSettings.h"
@@ -96,7 +97,7 @@ void ALabMinotaur::OnHeardNoise(const FVector& Location, float Strength, FName T
 		UE_LOG(LogLabrynn, Log, TEXT("Minotauro: oyó '%s' (%.2f) en %s"), *Tag.ToString(), Strength, *Location.ToCompactString());
 		if (!bWasChasing)
 		{
-			MulticastSound(RoarSound);
+			MulticastSfx(ELabSfx::MinoRoar);
 		}
 		if (const ALabMaze* Maze = GetMaze())
 		{
@@ -105,12 +106,9 @@ void ALabMinotaur::OnHeardNoise(const FVector& Location, float Strength, FName T
 	}
 }
 
-void ALabMinotaur::MulticastSound_Implementation(USoundBase* Sound)
+void ALabMinotaur::MulticastSfx_Implementation(ELabSfx Id)
 {
-	if (Sound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, Sound, GetActorLocation());
-	}
+	ULabAudio::Play(this, Id, GetActorLocation());
 }
 
 void ALabMinotaur::RepathTo(const FIntPoint& RawTarget, bool bAvoidFire)
@@ -257,7 +255,7 @@ void ALabMinotaur::TryAttack()
 			StunnedUntil = GetWorld()->GetTimeSeconds() + S->StunAfterHit;
 			Path.Reset();
 			UE_LOG(LogLabrynn, Log, TEXT("Minotauro: ¡atrapó a %s! (aturdido %.1f s)"), *Ch->GetName(), S->StunAfterHit);
-			MulticastSound(RoarSound);
+			MulticastSfx(ELabSfx::MinoAttack);
 			return;
 		}
 	}
@@ -338,7 +336,7 @@ void ALabMinotaur::Tick(float DeltaSeconds)
 			Scary->SetRepelling(S->RetreatSeconds, S->RepelOilDrainMultiplier);
 			Path.Reset();
 			UE_LOG(LogLabrynn, Log, TEXT("Minotauro: ¡el fuego de %s lo frena! retrocede %.0f s"), *GetNameSafe(Scary->GetHolder()), S->RetreatSeconds);
-			MulticastSound(FireFearSound);
+			MulticastSfx(ELabSfx::MinoFireFear);
 			return;
 		}
 
@@ -355,12 +353,12 @@ void ALabMinotaur::Tick(float DeltaSeconds)
 		if (GetVelocity().Size2D() > 50.f && Now >= NextFootstep)
 		{
 			NextFootstep = Now + (bChasing ? 0.38f : 0.6f);
-			if (FootstepSound) { UGameplayStatics::PlaySoundAtLocation(this, FootstepSound, GetActorLocation()); }
+			ULabAudio::Play(this, ELabSfx::MinoStep, GetActorLocation() - FVector(0.f, 0.f, 80.f), bChasing ? 1.f : 0.8f);
 		}
 		if (Now >= NextSnort)
 		{
 			NextSnort = Now + FMath::FRandRange(4.f, 8.f);
-			if (SnortSound) { UGameplayStatics::PlaySoundAtLocation(this, SnortSound, GetActorLocation()); }
+			ULabAudio::Play(this, ELabSfx::MinoSnort, GetActorLocation() + FVector(0.f, 0.f, 120.f));
 		}
 		EyesGlow->SetIntensity(bChasing ? 1600.f : 700.f);
 	}

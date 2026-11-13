@@ -90,14 +90,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Lab|Lantern")
 	FVector HoldOffset = FVector(28.f, 34.f, -30.f);
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Lantern|Audio")
-	TObjectPtr<USoundBase> ExtinguishSound;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Lantern|Audio")
-	TObjectPtr<USoundBase> LightSound;
 
 protected:
 	virtual void BeginPlay() override;
+
+	/** Crepitar de la llama (loop, en cada máquina mientras está encendido). */
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> FireAudio;
+	bool bFireSoundOn = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lab|Lantern")
 	TObjectPtr<USceneComponent> Root;

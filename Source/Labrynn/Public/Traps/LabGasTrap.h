@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Traps/LabTrapBase.h"
@@ -18,6 +18,8 @@ class LABRYNN_API ALabGasTrap : public ALabTrapBase
 	GENERATED_BODY()
 
 public:
+	virtual ELabSfx GetFireSfx() const override { return ELabSfx::GasFire; }
+
 	ALabGasTrap();
 	virtual void Tick(float DeltaSeconds) override;
 

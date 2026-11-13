@@ -1,4 +1,5 @@
-#include "Traps/LabTrapBase.h"
+﻿#include "Traps/LabTrapBase.h"
+#include "Audio/LabAudio.h"
 
 #include "Player/LabCharacter.h"
 #include "Components/BoxComponent.h"
@@ -97,17 +98,12 @@ void ALabTrapBase::OnStateChanged(ELabTrapState OldState)
 	{
 		return;
 	}
-	USoundBase* S = nullptr;
 	switch (State)
 	{
-	case ELabTrapState::Warning: S = WarnSound; break;
-	case ELabTrapState::Firing:  S = FireSound; break;
-	case ELabTrapState::Armed:   S = ResetSound; break;
+	case ELabTrapState::Warning: ULabAudio::Play(this, ELabSfx::TrapWarn, GetActorLocation()); break;
+	case ELabTrapState::Firing:  ULabAudio::Play(this, GetFireSfx(), GetActorLocation()); break;
+	case ELabTrapState::Armed:   ULabAudio::Play(this, ELabSfx::TrapReset, GetActorLocation()); break;
 	default: break;
-	}
-	if (S)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, S, GetActorLocation());
 	}
 }
 

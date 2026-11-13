@@ -29,8 +29,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lab|Pickup")
 	TObjectPtr<UPointLightComponent> Glow;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Pickup|Audio")
-	TObjectPtr<USoundBase> PickupSound;
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPickedUp();

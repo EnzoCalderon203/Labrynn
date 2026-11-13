@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "Interact/LabInteractable.h"
 #include "Interact/LabThrowable.h"
+#include "Audio/LabAudioSettings.h"
 #include "LabCharacter.generated.h"
 
 class UInputComponent;
@@ -78,6 +79,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Lab|Voice")
 	bool IsTalking() const { return bTalking; }
+
+	/** Solo servidor: el sonido suena en todas las máquinas, en la posición del personaje. */
+	void PlaySfxAll(ELabSfx Id);
 
 	/** Solo servidor: estadísticas de la ronda en el PlayerState (premios). nullptr si no hay. */
 	struct FLabStats* GetStatsServer() const;
@@ -277,9 +281,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> ReachArm;
 
-	/** Sonido de esfuerzo al tirar (lo asigna Luis). */
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Help|Audio")
-	TObjectPtr<class USoundBase> EffortSound;
+	// --- Audio (los sonidos viven en DA_Audio; ver ULabAudio) ---
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastSfx(ELabSfx Id, FVector_NetQuantize Location);
+
+	/** Pasos, salto y aterrizaje: cosmético, en cada máquina, desde el movimiento replicado. */
+	void TickFootsteps(float DeltaSeconds);
+	float StepDistance = 0.f;
+	bool bWasFalling = false;
+	float LastFallSpeed = 0.f;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Hiding)
 	bool bHiding = false;

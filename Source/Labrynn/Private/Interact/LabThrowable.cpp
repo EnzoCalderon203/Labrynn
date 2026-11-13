@@ -1,4 +1,5 @@
-#include "Interact/LabThrowable.h"
+﻿#include "Interact/LabThrowable.h"
+#include "Audio/LabAudio.h"
 
 #include "Player/LabCharacter.h"
 #include "Core/LabGameplaySettings.h"
@@ -164,10 +165,7 @@ void ALabThrowable::OnStop(const FHitResult& Hit)
 
 void ALabThrowable::MulticastImpact_Implementation(FVector Location, bool bShatter)
 {
-	if (USoundBase* S = bShatter ? ShatterSound : ImpactSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, S, Location);
-	}
+	ULabAudio::Play(this, bShatter ? ELabSfx::BottleShatter : ELabSfx::StoneImpact, Location);
 }
 
 #undef LOCTEXT_NAMESPACE

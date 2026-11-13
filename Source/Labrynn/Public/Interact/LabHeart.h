@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -34,14 +34,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lab|Heart")
 	TObjectPtr<UPointLightComponent> Pulse;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Lab|Heart|Audio")
-	TObjectPtr<USoundBase> UseSound;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Used)
 	bool bUsed = false;
 
 	UFUNCTION()
 	void OnRep_Used();
+
+	/** Latido en loop mientras no se usó. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> BeatAudio;
+	bool bBeatOn = false;
 
 private:
 	float PulseTime = 0.f;

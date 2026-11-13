@@ -75,9 +75,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jadeo", meta = (ClampMin = 0))
 	float BreathNoiseRange = 1800.f;
 
-	/** Sonido de respiración agitada (lo asigna Luis). Se reproduce en loop mientras jadea. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jadeo")
-	TObjectPtr<USoundBase> BreathSound;
 
 	// --- Heridas ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heridas", meta = (ClampMin = 0))

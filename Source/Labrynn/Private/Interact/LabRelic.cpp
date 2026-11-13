@@ -1,4 +1,5 @@
 ﻿#include "Interact/LabRelic.h"
+#include "Audio/LabAudio.h"
 
 #include "Player/LabCharacter.h"
 #include "Core/LabGameState.h"
@@ -131,6 +132,16 @@ void ALabRelic::ApplyCarrier(ALabCharacter* OldCarrier)
 		AttachToComponent(Carrier->GetCapsuleComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 		SetActorRelativeLocation(CarryOffset);
 		Carrier->SetCarriedRelic(this, CarrySpeedMultiplier);
+		if (!OldCarrier)
+		{
+			// Primera vez: campana de la reliquia; después, solo el ruido de agarrarla.
+			ULabAudio::Play(this, bTakeSoundPlayed ? ELabSfx::Pickup : ELabSfx::RelicTake, GetActorLocation());
+			bTakeSoundPlayed = true;
+		}
+	}
+	else if (OldCarrier)
+	{
+		ULabAudio::Play(this, ELabSfx::Drop, GetActorLocation());
 	}
 }
 

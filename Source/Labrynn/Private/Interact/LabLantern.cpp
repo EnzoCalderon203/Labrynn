@@ -1,4 +1,6 @@
 ﻿#include "Interact/LabLantern.h"
+#include "Audio/LabAudio.h"
+#include "Components/AudioComponent.h"
 
 #include "Player/LabCharacter.h"
 #include "Components/StaticMeshComponent.h"
@@ -103,6 +105,21 @@ void ALabLantern::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Crepitar en loop mientras la llama está encendida (cosmético, en cada máquina).
+	if (bLit != bFireSoundOn && GetNetMode() != NM_DedicatedServer)
+	{
+		bFireSoundOn = bLit;
+		if (bLit)
+		{
+			FireAudio = ULabAudio::PlayAttached(ELabSfx::LanternFire, GetRootComponent());
+		}
+		else if (FireAudio)
+		{
+			FireAudio->FadeOut(0.3f, 0.f);
+			FireAudio = nullptr;
+		}
+	}
+
 	if (HasAuthority())
 	{
 		// Aceite.
@@ -156,10 +173,7 @@ void ALabLantern::OnRep_Lit(bool bWasLit)
 	Flame->SetAttenuationRadius(LightRadius);
 	if (bWasLit != bLit && GetNetMode() != NM_DedicatedServer)
 	{
-		if (USoundBase* S = bLit ? LightSound : ExtinguishSound)
-		{
-			UGameplayStatics::PlaySoundAtLocation(this, S, GetActorLocation());
-		}
+		ULabAudio::Play(this, bLit ? ELabSfx::LanternLight : ELabSfx::LanternOut, GetActorLocation());
 	}
 }
 
@@ -211,6 +225,10 @@ void ALabLantern::SetHolder(ALabCharacter* NewHolder)
 	ALabCharacter* Old = Holder;
 	Holder = NewHolder;
 	ApplyHolder(Old);
+	if (Holder)
+	{
+		Holder->PlaySfxAll(ELabSfx::LanternTake);
+	}
 
 	if (!Holder && Old)
 	{
